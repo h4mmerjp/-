@@ -711,4 +711,290 @@
         <!-- ボタンセクション -->
         <div class="buttons-section no-print">
             <button class="btn btn-clear" onclick="clearAll()">全クリア</button>
-            <button class="btn btn-print" onclick="printReport()">印刷
+            <button class="btn btn-print" onclick="printReport()">印刷</button>
+            <button class="btn btn-export" onclick="exportData()">データエクスポート</button>
+        </div>
+    </div>
+
+    <script>
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            setToday();
+            updateCalculations();
+        });
+
+        // 今日の日付を設定
+        function setToday() {
+            const today = new Date();
+            const dateString = today.toISOString().split('T')[0];
+            document.getElementById('reportDate').value = dateString;
+            updateDateDisplay();
+        }
+
+        // 日付表示を更新
+        function updateDateDisplay() {
+            const dateInput = document.getElementById('reportDate');
+            const dateDisplay = document.getElementById('dateDisplay');
+            const printDateValue = document.getElementById('printDateValue');
+            const printDateDisplay = document.getElementById('printDateDisplay');
+            
+            if (dateInput.value) {
+                try {
+                    const date = new Date(dateInput.value + 'T00:00:00');
+                    const displayText = `(${date.toLocaleDateString('ja-JP', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        weekday: 'long'
+                    })})`;
+                    dateDisplay.textContent = displayText;
+                    printDateValue.textContent = dateInput.value;
+                    printDateDisplay.textContent = displayText;
+                } catch (error) {
+                    dateDisplay.textContent = '';
+                    printDateDisplay.textContent = '';
+                }
+            }
+        }
+
+        // 日付変更時
+        document.getElementById('reportDate').addEventListener('change', updateDateDisplay);
+
+        // 計算更新
+        function updateCalculations() {
+            // ストック計算
+            const stockItems = [
+                {id: 'stock500', value: 500},
+                {id: 'stock100', value: 100},
+                {id: 'stock50', value: 50},
+                {id: 'stock10', value: 10},
+                {id: 'stock5', value: 5},
+                {id: 'stock1', value: 1}
+            ];
+
+            let stockTotal = 0;
+            stockItems.forEach(item => {
+                const count = parseInt(document.getElementById(item.id).value) || 0;
+                const total = count * item.value;
+                document.getElementById(item.id + 'Total').textContent = total;
+                stockTotal += total;
+            });
+            
+            document.getElementById('stockGrandTotal').textContent = stockTotal;
+            document.getElementById('stockTotal2').textContent = stockTotal;
+
+            // 金種計算
+            const currencyItems = [
+                {id: 'bill10000', value: 10000},
+                {id: 'bill5000', value: 5000},
+                {id: 'bill2000', value: 2000},
+                {id: 'bill1000', value: 1000},
+                {id: 'coin500', value: 500},
+                {id: 'coin100', value: 100},
+                {id: 'coin50', value: 50},
+                {id: 'coin10', value: 10},
+                {id: 'coin5', value: 5},
+                {id: 'coin1', value: 1}
+            ];
+
+            let currencyTotal = 0;
+            currencyItems.forEach(item => {
+                const count = parseInt(document.getElementById(item.id).value) || 0;
+                const total = count * item.value;
+                document.getElementById(item.id + 'Total').textContent = total;
+                currencyTotal += total;
+            });
+            
+            document.getElementById('currencyTotal').textContent = currencyTotal;
+
+            // 収入計算
+            const incomeItems = ['shahoIncome', 'kokuhoIncome', 'koukiIncome', 'jihiIncome', 'bushanIncome', 'extraIncome1Amount', 'extraIncome2Amount'];
+            let incomeTotal = 0;
+            incomeItems.forEach(id => {
+                incomeTotal += parseInt(document.getElementById(id).value) || 0;
+            });
+            document.getElementById('incomeTotal').textContent = incomeTotal;
+            document.getElementById('todayIncome').textContent = incomeTotal;
+
+            // 出金計算
+            const expenseItems = ['refund', 'expense2', 'expense3', 'expenseDirector'];
+            let expenseTotal = 0;
+            expenseItems.forEach(id => {
+                expenseTotal += parseInt(document.getElementById(id).value) || 0;
+            });
+            document.getElementById('expenseTotal').textContent = expenseTotal;
+            document.getElementById('todayExpense').textContent = expenseTotal;
+
+            // 最終残高計算
+            const previousBalance = parseInt(document.getElementById('previousBalance').value) || 0;
+            const finalBalance = previousBalance + incomeTotal - expenseTotal;
+            document.getElementById('finalBalance').textContent = finalBalance;
+        }
+
+        // 全クリア
+        function clearAll() {
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
+
+        function confirmClear() {
+            // 全ての入力フィールドをクリア
+            const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+            inputs.forEach(input => {
+                if (input.id !== 'reportDate') {
+                    input.value = '';
+                }
+            });
+            
+            document.getElementById('confirmModal').classList.add('hidden');
+            updateCalculations();
+            showMessage('全データをクリアしました。');
+        }
+
+        function cancelClear() {
+            document.getElementById('confirmModal').classList.add('hidden');
+        }
+
+        // 印刷
+        function printReport() {
+            // 印刷前にブラウザ設定のガイダンスを表示
+            if (navigator.userAgent.includes('iPad') || navigator.userAgent.includes('iPhone')) {
+                setTimeout(() => {
+                    alert('印刷設定:\n1. 用紙サイズ：B5\n2. 方向：横向き\n3. 拡大/縮小：100%\n4. 余白：最小');
+                }, 100);
+            } else if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+                setTimeout(() => {
+                    alert('印刷設定で「用紙サイズ：B5」「方向：横向き」「余白：最小」を選択してください。');
+                }, 100);
+            } else {
+                setTimeout(() => {
+                    alert('印刷設定:\n用紙：B5横向き\n余白：最小\n拡大/縮小：100%');
+                }, 100);
+            }
+            
+            // 印刷用日付表示を更新
+            updateDateDisplay();
+            
+            // 印刷実行
+            setTimeout(() => {
+                window.print();
+            }, 500);
+        }
+
+        // データエクスポート
+        function exportData() {
+            try {
+                const data = {
+                    date: document.getElementById('reportDate').value || 'no-date',
+                    income: {
+                        shaho: {
+                            count: parseInt(document.getElementById('shahoCount').value) || 0,
+                            amount: parseInt(document.getElementById('shahoIncome').value) || 0
+                        },
+                        kokuho: {
+                            count: parseInt(document.getElementById('kokuhoCount').value) || 0,
+                            amount: parseInt(document.getElementById('kokuhoIncome').value) || 0
+                        },
+                        kouki: {
+                            count: parseInt(document.getElementById('koukiCount').value) || 0,
+                            amount: parseInt(document.getElementById('koukiIncome').value) || 0
+                        },
+                        jihi: {
+                            count: parseInt(document.getElementById('jihiCount').value) || 0,
+                            amount: parseInt(document.getElementById('jihiIncome').value) || 0
+                        },
+                        bushan: {
+                            note: document.getElementById('bushanNote').value || '',
+                            amount: parseInt(document.getElementById('bushanIncome').value) || 0
+                        },
+                        extra1: {
+                            subject: document.getElementById('extraIncome1Subject').value || '',
+                            destination: document.getElementById('extraIncome1Destination').value || '',
+                            note: document.getElementById('extraIncome1Note').value || '',
+                            amount: parseInt(document.getElementById('extraIncome1Amount').value) || 0
+                        },
+                        extra2: {
+                            subject: document.getElementById('extraIncome2Subject').value || '',
+                            destination: document.getElementById('extraIncome2Destination').value || '',
+                            note: document.getElementById('extraIncome2Note').value || '',
+                            amount: parseInt(document.getElementById('extraIncome2Amount').value) || 0
+                        },
+                        total: parseInt(document.getElementById('incomeTotal').textContent) || 0
+                    },
+                    expense: {
+                        refund: parseInt(document.getElementById('refund').value) || 0,
+                        expense2: {
+                            subject: document.getElementById('expense2Subject').value || '',
+                            destination: document.getElementById('expense2Destination').value || '',
+                            note: document.getElementById('expense2Note').value || '',
+                            amount: parseInt(document.getElementById('expense2').value) || 0
+                        },
+                        expense3: {
+                            subject: document.getElementById('expense3Subject').value || '',
+                            destination: document.getElementById('expense3Destination').value || '',
+                            note: document.getElementById('expense3Note').value || '',
+                            amount: parseInt(document.getElementById('expense3').value) || 0
+                        },
+                        director: parseInt(document.getElementById('expenseDirector').value) || 0,
+                        total: parseInt(document.getElementById('expenseTotal').textContent) || 0
+                    },
+                    balance: {
+                        previous: parseInt(document.getElementById('previousBalance').value) || 0,
+                        final: parseInt(document.getElementById('finalBalance').textContent) || 0
+                    },
+                    stock: {
+                        stock500: parseInt(document.getElementById('stock500').value) || 0,
+                        stock100: parseInt(document.getElementById('stock100').value) || 0,
+                        stock50: parseInt(document.getElementById('stock50').value) || 0,
+                        stock10: parseInt(document.getElementById('stock10').value) || 0,
+                        stock5: parseInt(document.getElementById('stock5').value) || 0,
+                        stock1: parseInt(document.getElementById('stock1').value) || 0,
+                        total: parseInt(document.getElementById('stockGrandTotal').textContent) || 0
+                    },
+                    currency: {
+                        bill10000: parseInt(document.getElementById('bill10000').value) || 0,
+                        bill5000: parseInt(document.getElementById('bill5000').value) || 0,
+                        bill2000: parseInt(document.getElementById('bill2000').value) || 0,
+                        bill1000: parseInt(document.getElementById('bill1000').value) || 0,
+                        coin500: parseInt(document.getElementById('coin500').value) || 0,
+                        coin100: parseInt(document.getElementById('coin100').value) || 0,
+                        coin50: parseInt(document.getElementById('coin50').value) || 0,
+                        coin10: parseInt(document.getElementById('coin10').value) || 0,
+                        coin5: parseInt(document.getElementById('coin5').value) || 0,
+                        coin1: parseInt(document.getElementById('coin1').value) || 0,
+                        total: parseInt(document.getElementById('currencyTotal').textContent) || 0
+                    }
+                };
+
+                const dataStr = JSON.stringify(data, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `dental_daily_report_${data.date}.json`;
+                a.style.display = 'none';
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                URL.revokeObjectURL(url);
+                showMessage('データをエクスポートしました。');
+            } catch (error) {
+                console.error('エクスポート処理でエラー:', error);
+                showMessage('エクスポート処理中にエラーが発生しました。');
+            }
+        }
+
+        // メッセージ表示
+        function showMessage(message) {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.textContent = message;
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
