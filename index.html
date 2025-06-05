@@ -8,7 +8,7 @@
         @media print { 
             @page { 
                 size: B5 landscape; 
-                margin: 0.15cm; 
+                margin: 0.3cm; 
             }
             .no-print { display: none !important; } 
             .print-block { display: block !important; } 
@@ -16,12 +16,11 @@
                 margin: 0 !important; 
                 padding: 0 !important;
                 background: white !important; 
-                font-size: 8px !important;
+                font-size: 10px !important;
                 width: 100% !important;
                 height: 100% !important;
                 overflow: visible !important;
-                transform: scale(1) !important;
-                -webkit-transform: scale(1) !important;
+                font-family: 'MS Gothic', monospace !important;
             }
             input { 
                 border: none !important; 
@@ -29,76 +28,117 @@
                 color: black !important; 
                 -webkit-appearance: none !important;
                 appearance: none !important;
-                font-size: 7px !important;
+                font-size: 9px !important;
+                font-family: 'MS Gothic', monospace !important;
+                font-weight: bold !important;
             } 
             .print-container { 
                 max-width: 100% !important; 
                 width: 100% !important;
                 margin: 0 !important; 
                 padding: 0 !important;
-                font-size: 8px !important; 
-                transform: scale(1) !important;
-                -webkit-transform: scale(1) !important;
-                page-break-inside: avoid !important;
-                border: 1px solid black !important;
+                font-size: 10px !important; 
+                border: 2px solid black !important;
                 box-sizing: border-box !important;
                 overflow: hidden !important;
+                height: 100vh !important;
+                display: flex !important;
+                flex-direction: column !important;
             }
             table { 
-                font-size: 7px !important; 
+                font-size: 9px !important; 
                 page-break-inside: avoid !important;
                 width: 100% !important;
                 table-layout: fixed !important;
                 border-collapse: collapse !important;
+                margin-bottom: 8px !important;
             }
             th, td { 
-                padding: 0.5px !important; 
-                font-size: 7px !important;
-                line-height: 1 !important;
+                padding: 2px 1px !important; 
+                font-size: 9px !important;
+                line-height: 1.1 !important;
                 word-wrap: break-word !important;
                 overflow: hidden !important;
+                border: 1px solid black !important;
+                text-align: center !important;
+                font-family: 'MS Gothic', monospace !important;
             }
             .grid { 
                 display: grid !important; 
-                grid-template-columns: 42% 58% !important; 
-                gap: 0 !important;
+                grid-template-columns: 40% 60% !important; 
+                gap: 8px !important;
                 width: 100% !important;
                 height: auto !important;
+                flex: 1 !important;
             }
             .print-header {
-                font-size: 9px !important;
-                padding: 1px !important;
-                line-height: 1.1 !important;
+                font-size: 12px !important;
+                padding: 3px !important;
+                line-height: 1.2 !important;
+                text-align: center !important;
+                font-weight: bold !important;
+                border-bottom: 2px solid black !important;
+                margin-bottom: 3px !important;
             }
             .print-date {
-                font-size: 7px !important;
-                padding: 0.5px !important;
-                line-height: 1 !important;
+                font-size: 9px !important;
+                padding: 2px !important;
+                line-height: 1.1 !important;
+                text-align: center !important;
+                border-bottom: 1px solid black !important;
+                margin-bottom: 5px !important;
             }
-            .print-input-s { width: 12px !important; font-size: 6px !important; }
-            .print-input-m { width: 20px !important; font-size: 6px !important; }
-            .print-input-l { width: 28px !important; font-size: 6px !important; }
-            
-            * {
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-            }
+            .print-input-s { width: 25px !important; font-size: 8px !important; text-align: right !important; }
+            .print-input-m { width: 35px !important; font-size: 8px !important; text-align: right !important; }
+            .print-input-l { width: 50px !important; font-size: 8px !important; text-align: right !important; }
+            .print-input-center { text-align: center !important; }
             
             .left-section, .right-section {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
+            
+            .spacer {
+                display: none !important;
+            }
+            
+            .total-row {
+                background-color: #e8e8e8 !important;
+                font-weight: bold !important;
+            }
+            
+            .data-row {
+                background-color: #f8f8f8 !important;
+            }
+            
+            th {
+                background-color: #d0d0d0 !important;
+                font-weight: bold !important;
+            }
+            
+            .compact-table {
+                margin-bottom: 4px !important;
+            }
+            
+            /* 印刷時のセル幅調整 */
+            .col-item { width: 30% !important; }
+            .col-count { width: 25% !important; }
+            .col-amount { width: 45% !important; }
+            .col-subject { width: 20% !important; }
+            .col-dest { width: 25% !important; }
+            .col-note { width: 25% !important; }
+            .col-value { width: 30% !important; }
         }
         
         body {
-            font-family: monospace;
+            font-family: 'MS Gothic', monospace, sans-serif;
             margin: 0;
             padding: 0;
             background-color: #f0f0f0;
         }
         
         .app-container {
-            font-family: monospace;
+            font-family: 'MS Gothic', monospace, sans-serif;
             font-size: 12px;
             background-color: white;
             border: 2px solid black;
@@ -165,15 +205,15 @@
         
         .left-section {
             border-right: 2px solid black;
-            padding-right: 0;
+            padding-right: 8px;
         }
         
         .right-section {
-            padding-left: 0;
+            padding-left: 8px;
         }
         
         .spacer {
-            height: 120px;
+            height: 20px;
         }
         
         table {
@@ -181,6 +221,7 @@
             border-collapse: collapse;
             font-size: 11px;
             table-layout: fixed;
+            margin-bottom: 15px;
         }
         
         th, td {
@@ -206,7 +247,7 @@
         .input-field {
             border: none;
             background: transparent;
-            font-family: monospace;
+            font-family: 'MS Gothic', monospace, sans-serif;
             font-size: 11px;
             text-align: right;
             width: 100%;
@@ -344,6 +385,11 @@
                 border-right: none;
                 border-bottom: 2px solid black;
                 margin-bottom: 20px;
+                padding-right: 0;
+            }
+            
+            .right-section {
+                padding-left: 0;
             }
             
             .spacer {
@@ -373,7 +419,7 @@
         </div>
 
         <!-- 印刷用日付表示 -->
-        <div class="print-date-section print-block" id="printDate">
+        <div class="print-date-section print-block print-date" id="printDate">
             日付: <span id="printDateValue"></span> <span id="printDateDisplay"></span>
         </div>
 
@@ -406,7 +452,7 @@
                 <div class="spacer"></div>
 
                 <!-- ストック -->
-                <table>
+                <table class="compact-table">
                     <thead>
                         <tr>
                             <th colspan="3">ストック</th>
@@ -414,45 +460,45 @@
                     </thead>
                     <tbody>
                         <tr class="data-row">
-                            <td>5百円</td>
-                            <td><input type="number" class="input-field print-input-s" id="stock500" oninput="updateCalculations()">枚</td>
-                            <td><span id="stock500Total">0</span></td>
+                            <td class="col-item">5百円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="stock500" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="stock500Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>100円</td>
-                            <td><input type="number" class="input-field print-input-s" id="stock100" oninput="updateCalculations()">枚</td>
-                            <td><span id="stock100Total">0</span></td>
+                            <td class="col-item">100円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="stock100" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="stock100Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>50円</td>
-                            <td><input type="number" class="input-field print-input-s" id="stock50" oninput="updateCalculations()">枚</td>
-                            <td><span id="stock50Total">0</span></td>
+                            <td class="col-item">50円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="stock50" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="stock50Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>10円</td>
-                            <td><input type="number" class="input-field print-input-s" id="stock10" oninput="updateCalculations()">枚</td>
-                            <td><span id="stock10Total">0</span></td>
+                            <td class="col-item">10円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="stock10" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="stock10Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>5円</td>
-                            <td><input type="number" class="input-field print-input-s" id="stock5" oninput="updateCalculations()">枚</td>
-                            <td><span id="stock5Total">0</span></td>
+                            <td class="col-item">5円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="stock5" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="stock5Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>1円</td>
-                            <td><input type="number" class="input-field print-input-s" id="stock1" oninput="updateCalculations()">枚</td>
-                            <td><span id="stock1Total">0</span></td>
+                            <td class="col-item">1円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="stock1" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="stock1Total">0</span></td>
                         </tr>
                         <tr class="total-row">
-                            <td>ストック</td>
-                            <td></td>
-                            <td><span id="stockGrandTotal">0</span></td>
+                            <td class="col-item">ストック</td>
+                            <td class="col-count"></td>
+                            <td class="col-amount"><span id="stockGrandTotal">0</span></td>
                         </tr>
                     </tbody>
                 </table>
 
                 <!-- 本日の残高金種 -->
-                <table style="margin-top: 20px;">
+                <table class="compact-table">
                     <thead>
                         <tr>
                             <th colspan="3">本日の残高金種</th>
@@ -460,64 +506,64 @@
                     </thead>
                     <tbody>
                         <tr class="data-row">
-                            <td>1万円</td>
-                            <td><input type="number" class="input-field print-input-s" id="bill10000" oninput="updateCalculations()">枚</td>
-                            <td><span id="bill10000Total">0</span></td>
+                            <td class="col-item">1万円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="bill10000" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="bill10000Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>5千円</td>
-                            <td><input type="number" class="input-field print-input-s" id="bill5000" oninput="updateCalculations()">枚</td>
-                            <td><span id="bill5000Total">0</span></td>
+                            <td class="col-item">5千円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="bill5000" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="bill5000Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>2千円</td>
-                            <td><input type="number" class="input-field print-input-s" id="bill2000" oninput="updateCalculations()">枚</td>
-                            <td><span id="bill2000Total">0</span></td>
+                            <td class="col-item">2千円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="bill2000" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="bill2000Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>千円</td>
-                            <td><input type="number" class="input-field print-input-s" id="bill1000" oninput="updateCalculations()">枚</td>
-                            <td><span id="bill1000Total">0</span></td>
+                            <td class="col-item">千円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="bill1000" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="bill1000Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>5百円</td>
-                            <td><input type="number" class="input-field print-input-s" id="coin500" oninput="updateCalculations()">枚</td>
-                            <td><span id="coin500Total">0</span></td>
+                            <td class="col-item">5百円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="coin500" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="coin500Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>100円</td>
-                            <td><input type="number" class="input-field print-input-s" id="coin100" oninput="updateCalculations()">枚</td>
-                            <td><span id="coin100Total">0</span></td>
+                            <td class="col-item">100円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="coin100" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="coin100Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>50円</td>
-                            <td><input type="number" class="input-field print-input-s" id="coin50" oninput="updateCalculations()">枚</td>
-                            <td><span id="coin50Total">0</span></td>
+                            <td class="col-item">50円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="coin50" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="coin50Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>10円</td>
-                            <td><input type="number" class="input-field print-input-s" id="coin10" oninput="updateCalculations()">枚</td>
-                            <td><span id="coin10Total">0</span></td>
+                            <td class="col-item">10円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="coin10" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="coin10Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>5円</td>
-                            <td><input type="number" class="input-field print-input-s" id="coin5" oninput="updateCalculations()">枚</td>
-                            <td><span id="coin5Total">0</span></td>
+                            <td class="col-item">5円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="coin5" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="coin5Total">0</span></td>
                         </tr>
                         <tr class="data-row">
-                            <td>1円</td>
-                            <td><input type="number" class="input-field print-input-s" id="coin1" oninput="updateCalculations()">枚</td>
-                            <td><span id="coin1Total">0</span></td>
+                            <td class="col-item">1円</td>
+                            <td class="col-count"><input type="number" class="input-field print-input-s" id="coin1" oninput="updateCalculations()">枚</td>
+                            <td class="col-amount"><span id="coin1Total">0</span></td>
                         </tr>
                         <tr class="total-row">
-                            <td>ストック</td>
-                            <td></td>
-                            <td><span id="stockTotal2">0</span></td>
+                            <td class="col-item">ストック</td>
+                            <td class="col-count"></td>
+                            <td class="col-amount"><span id="stockTotal2">0</span></td>
                         </tr>
                         <tr class="total-row">
-                            <td>本日の残高</td>
-                            <td></td>
-                            <td><span id="currencyTotal">0</span></td>
+                            <td class="col-item">本日の残高</td>
+                            <td class="col-count"></td>
+                            <td class="col-amount"><span id="currencyTotal">0</span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -526,16 +572,16 @@
             <!-- 右側：窓口現金入出金 -->
             <div class="right-section">
                 <!-- 窓口現金入金の記録 -->
-                <table>
+                <table class="compact-table">
                     <thead>
                         <tr>
                             <th colspan="4">窓口現金入金の記録</th>
                         </tr>
                         <tr>
-                            <th>科目</th>
-                            <th>入金先</th>
-                            <th>摘要</th>
-                            <th>入金額</th>
+                            <th class="col-subject">科目</th>
+                            <th class="col-dest">入金先</th>
+                            <th class="col-note">摘要</th>
+                            <th class="col-value">入金額</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -566,19 +612,19 @@
                         <tr>
                             <td>物販収入</td>
                             <td>窓口収入合計</td>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="bushanNote"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="bushanNote"></td>
                             <td><input type="number" class="input-field print-input-m" id="bushanIncome" oninput="updateCalculations()"></td>
                         </tr>
                         <tr>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="extraIncome1Subject"></td>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="extraIncome1Destination"></td>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="extraIncome1Note"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="extraIncome1Subject"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="extraIncome1Destination"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="extraIncome1Note"></td>
                             <td><input type="number" class="input-field print-input-m" id="extraIncome1Amount" oninput="updateCalculations()"></td>
                         </tr>
                         <tr>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="extraIncome2Subject"></td>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="extraIncome2Destination"></td>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="extraIncome2Note"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="extraIncome2Subject"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="extraIncome2Destination"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="extraIncome2Note"></td>
                             <td><input type="number" class="input-field print-input-m" id="extraIncome2Amount" oninput="updateCalculations()"></td>
                         </tr>
                         <tr class="total-row">
@@ -589,16 +635,16 @@
                 </table>
 
                 <!-- 窓口現金出金の記録 -->
-                <table style="margin-top: 20px;">
+                <table class="compact-table">
                     <thead>
                         <tr>
                             <th colspan="4">窓口現金出金の記録</th>
                         </tr>
                         <tr>
-                            <th>科目</th>
-                            <th>出金先</th>
-                            <th>摘要</th>
-                            <th>出金額</th>
+                            <th class="col-subject">科目</th>
+                            <th class="col-dest">出金先</th>
+                            <th class="col-note">摘要</th>
+                            <th class="col-value">出金額</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -609,15 +655,15 @@
                             <td><input type="number" class="input-field print-input-m" id="refund" oninput="updateCalculations()"></td>
                         </tr>
                         <tr>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="expense2Subject"></td>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="expense2Destination"></td>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="expense2Note"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="expense2Subject"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="expense2Destination"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="expense2Note"></td>
                             <td><input type="number" class="input-field print-input-m" id="expense2" oninput="updateCalculations()"></td>
                         </tr>
                         <tr>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="expense3Subject"></td>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="expense3Destination"></td>
-                            <td><input type="text" class="input-field input-field-center print-input-s" id="expense3Note"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="expense3Subject"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="expense3Destination"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="expense3Note"></td>
                             <td><input type="number" class="input-field print-input-m" id="expense3" oninput="updateCalculations()"></td>
                         </tr>
                         <tr>
@@ -634,7 +680,7 @@
                 </table>
 
                 <!-- 窓口現金出納 -->
-                <table style="margin-top: 20px;">
+                <table class="compact-table">
                     <thead>
                         <tr>
                             <th colspan="2">窓口現金出納</th>
@@ -665,286 +711,4 @@
         <!-- ボタンセクション -->
         <div class="buttons-section no-print">
             <button class="btn btn-clear" onclick="clearAll()">全クリア</button>
-            <button class="btn btn-print" onclick="printReport()">印刷</button>
-            <button class="btn btn-export" onclick="exportData()">データエクスポート</button>
-        </div>
-    </div>
-
-    <script>
-        // 初期化
-        document.addEventListener('DOMContentLoaded', function() {
-            setToday();
-            updateCalculations();
-        });
-
-        // 今日の日付を設定
-        function setToday() {
-            const today = new Date();
-            const dateString = today.toISOString().split('T')[0];
-            document.getElementById('reportDate').value = dateString;
-            updateDateDisplay();
-        }
-
-        // 日付表示を更新
-        function updateDateDisplay() {
-            const dateInput = document.getElementById('reportDate');
-            const dateDisplay = document.getElementById('dateDisplay');
-            const printDateValue = document.getElementById('printDateValue');
-            const printDateDisplay = document.getElementById('printDateDisplay');
-            
-            if (dateInput.value) {
-                try {
-                    const date = new Date(dateInput.value + 'T00:00:00');
-                    const displayText = `(${date.toLocaleDateString('ja-JP', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        weekday: 'long'
-                    })})`;
-                    dateDisplay.textContent = displayText;
-                    printDateValue.textContent = dateInput.value;
-                    printDateDisplay.textContent = displayText;
-                } catch (error) {
-                    dateDisplay.textContent = '';
-                    printDateDisplay.textContent = '';
-                }
-            }
-        }
-
-        // 日付変更時
-        document.getElementById('reportDate').addEventListener('change', updateDateDisplay);
-
-        // 計算更新
-        function updateCalculations() {
-            // ストック計算
-            const stockItems = [
-                {id: 'stock500', value: 500},
-                {id: 'stock100', value: 100},
-                {id: 'stock50', value: 50},
-                {id: 'stock10', value: 10},
-                {id: 'stock5', value: 5},
-                {id: 'stock1', value: 1}
-            ];
-
-            let stockTotal = 0;
-            stockItems.forEach(item => {
-                const count = parseInt(document.getElementById(item.id).value) || 0;
-                const total = count * item.value;
-                document.getElementById(item.id + 'Total').textContent = total;
-                stockTotal += total;
-            });
-            
-            document.getElementById('stockGrandTotal').textContent = stockTotal;
-            document.getElementById('stockTotal2').textContent = stockTotal;
-
-            // 金種計算
-            const currencyItems = [
-                {id: 'bill10000', value: 10000},
-                {id: 'bill5000', value: 5000},
-                {id: 'bill2000', value: 2000},
-                {id: 'bill1000', value: 1000},
-                {id: 'coin500', value: 500},
-                {id: 'coin100', value: 100},
-                {id: 'coin50', value: 50},
-                {id: 'coin10', value: 10},
-                {id: 'coin5', value: 5},
-                {id: 'coin1', value: 1}
-            ];
-
-            let currencyTotal = 0;
-            currencyItems.forEach(item => {
-                const count = parseInt(document.getElementById(item.id).value) || 0;
-                const total = count * item.value;
-                document.getElementById(item.id + 'Total').textContent = total;
-                currencyTotal += total;
-            });
-            
-            document.getElementById('currencyTotal').textContent = currencyTotal;
-
-            // 収入計算
-            const incomeItems = ['shahoIncome', 'kokuhoIncome', 'koukiIncome', 'jihiIncome', 'bushanIncome', 'extraIncome1Amount', 'extraIncome2Amount'];
-            let incomeTotal = 0;
-            incomeItems.forEach(id => {
-                incomeTotal += parseInt(document.getElementById(id).value) || 0;
-            });
-            document.getElementById('incomeTotal').textContent = incomeTotal;
-            document.getElementById('todayIncome').textContent = incomeTotal;
-
-            // 出金計算
-            const expenseItems = ['refund', 'expense2', 'expense3', 'expenseDirector'];
-            let expenseTotal = 0;
-            expenseItems.forEach(id => {
-                expenseTotal += parseInt(document.getElementById(id).value) || 0;
-            });
-            document.getElementById('expenseTotal').textContent = expenseTotal;
-            document.getElementById('todayExpense').textContent = expenseTotal;
-
-            // 最終残高計算
-            const previousBalance = parseInt(document.getElementById('previousBalance').value) || 0;
-            const finalBalance = previousBalance + incomeTotal - expenseTotal;
-            document.getElementById('finalBalance').textContent = finalBalance;
-        }
-
-        // 全クリア
-        function clearAll() {
-            document.getElementById('confirmModal').classList.remove('hidden');
-        }
-
-        function confirmClear() {
-            // 全ての入力フィールドをクリア
-            const inputs = document.querySelectorAll('input[type="number"], input[type="text"]');
-            inputs.forEach(input => {
-                if (input.id !== 'reportDate') {
-                    input.value = '';
-                }
-            });
-            
-            document.getElementById('confirmModal').classList.add('hidden');
-            updateCalculations();
-            showMessage('全データをクリアしました。');
-        }
-
-        function cancelClear() {
-            document.getElementById('confirmModal').classList.add('hidden');
-        }
-
-        // 印刷
-        function printReport() {
-            // iPad Safari用の印刷前処理
-            if (navigator.userAgent.includes('iPad')) {
-                setTimeout(() => {
-                    alert('印刷設定:\n1. 用紙サイズ：B5\n2. 方向：横向き\n3. 拡大/縮小：100%\n4. 余白：最小');
-                }, 100);
-            } else if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
-                setTimeout(() => {
-                    alert('印刷設定で「用紙サイズ：B5」「方向：横向き」を選択してください。');
-                }, 100);
-            }
-            
-            // 印刷用日付表示を更新
-            updateDateDisplay();
-            
-            // 印刷実行
-            setTimeout(() => {
-                window.print();
-            }, 200);
-        }
-
-        // データエクスポート
-        function exportData() {
-            try {
-                const data = {
-                    date: document.getElementById('reportDate').value || 'no-date',
-                    income: {
-                        shaho: {
-                            count: parseInt(document.getElementById('shahoCount').value) || 0,
-                            amount: parseInt(document.getElementById('shahoIncome').value) || 0
-                        },
-                        kokuho: {
-                            count: parseInt(document.getElementById('kokuhoCount').value) || 0,
-                            amount: parseInt(document.getElementById('kokuhoIncome').value) || 0
-                        },
-                        kouki: {
-                            count: parseInt(document.getElementById('koukiCount').value) || 0,
-                            amount: parseInt(document.getElementById('koukiIncome').value) || 0
-                        },
-                        jihi: {
-                            count: parseInt(document.getElementById('jihiCount').value) || 0,
-                            amount: parseInt(document.getElementById('jihiIncome').value) || 0
-                        },
-                        bushan: {
-                            note: document.getElementById('bushanNote').value || '',
-                            amount: parseInt(document.getElementById('bushanIncome').value) || 0
-                        },
-                        extra1: {
-                            subject: document.getElementById('extraIncome1Subject').value || '',
-                            destination: document.getElementById('extraIncome1Destination').value || '',
-                            note: document.getElementById('extraIncome1Note').value || '',
-                            amount: parseInt(document.getElementById('extraIncome1Amount').value) || 0
-                        },
-                        extra2: {
-                            subject: document.getElementById('extraIncome2Subject').value || '',
-                            destination: document.getElementById('extraIncome2Destination').value || '',
-                            note: document.getElementById('extraIncome2Note').value || '',
-                            amount: parseInt(document.getElementById('extraIncome2Amount').value) || 0
-                        },
-                        total: parseInt(document.getElementById('incomeTotal').textContent) || 0
-                    },
-                    expense: {
-                        refund: parseInt(document.getElementById('refund').value) || 0,
-                        expense2: {
-                            subject: document.getElementById('expense2Subject').value || '',
-                            destination: document.getElementById('expense2Destination').value || '',
-                            note: document.getElementById('expense2Note').value || '',
-                            amount: parseInt(document.getElementById('expense2').value) || 0
-                        },
-                        expense3: {
-                            subject: document.getElementById('expense3Subject').value || '',
-                            destination: document.getElementById('expense3Destination').value || '',
-                            note: document.getElementById('expense3Note').value || '',
-                            amount: parseInt(document.getElementById('expense3').value) || 0
-                        },
-                        director: parseInt(document.getElementById('expenseDirector').value) || 0,
-                        total: parseInt(document.getElementById('expenseTotal').textContent) || 0
-                    },
-                    balance: {
-                        previous: parseInt(document.getElementById('previousBalance').value) || 0,
-                        final: parseInt(document.getElementById('finalBalance').textContent) || 0
-                    },
-                    stock: {
-                        stock500: parseInt(document.getElementById('stock500').value) || 0,
-                        stock100: parseInt(document.getElementById('stock100').value) || 0,
-                        stock50: parseInt(document.getElementById('stock50').value) || 0,
-                        stock10: parseInt(document.getElementById('stock10').value) || 0,
-                        stock5: parseInt(document.getElementById('stock5').value) || 0,
-                        stock1: parseInt(document.getElementById('stock1').value) || 0,
-                        total: parseInt(document.getElementById('stockGrandTotal').textContent) || 0
-                    },
-                    currency: {
-                        bill10000: parseInt(document.getElementById('bill10000').value) || 0,
-                        bill5000: parseInt(document.getElementById('bill5000').value) || 0,
-                        bill2000: parseInt(document.getElementById('bill2000').value) || 0,
-                        bill1000: parseInt(document.getElementById('bill1000').value) || 0,
-                        coin500: parseInt(document.getElementById('coin500').value) || 0,
-                        coin100: parseInt(document.getElementById('coin100').value) || 0,
-                        coin50: parseInt(document.getElementById('coin50').value) || 0,
-                        coin10: parseInt(document.getElementById('coin10').value) || 0,
-                        coin5: parseInt(document.getElementById('coin5').value) || 0,
-                        coin1: parseInt(document.getElementById('coin1').value) || 0,
-                        total: parseInt(document.getElementById('currencyTotal').textContent) || 0
-                    }
-                };
-
-                const dataStr = JSON.stringify(data, null, 2);
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `dental_daily_report_${data.date}.json`;
-                a.style.display = 'none';
-                
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                URL.revokeObjectURL(url);
-                showMessage('データをエクスポートしました。');
-            } catch (error) {
-                console.error('エクスポート処理でエラー:', error);
-                showMessage('エクスポート処理中にエラーが発生しました。');
-            }
-        }
-
-        // メッセージ表示
-        function showMessage(message) {
-            const messageBox = document.getElementById('messageBox');
-            messageBox.textContent = message;
-            messageBox.classList.remove('hidden');
-            setTimeout(() => {
-                messageBox.classList.add('hidden');
-            }, 3000);
-        }
-    </script>
-</body>
-</html>
+            <button class="btn btn-print" onclick="printReport()">印刷
