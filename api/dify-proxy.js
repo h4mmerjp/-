@@ -15,7 +15,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Environment variables check:', {
+      hasApiUrl: !!process.env.DIFY_API_URL,
+      hasApiKey: !!process.env.DIFY_API_KEY
+    });
+
     const { pdf_data, file_name } = req.body;
+
+    if (!process.env.DIFY_API_URL || !process.env.DIFY_API_KEY) {
+      throw new Error('Environment variables not set');
+    }
 
     const response = await fetch(process.env.DIFY_API_URL, {
       method: 'POST',
@@ -31,13 +40,15 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Dify API Error: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
     res.status(200).json(result);
 
   } catch (error) {
+    console.error('API Error:', error);
     res.status(500).json({ error: error.message });
   }
 }
