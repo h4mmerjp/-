@@ -1,4 +1,12 @@
-<!DOCTYPE html>
+// ファイルをBase64に変換
+        function convertToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]); // data:application/pdf;base64, を除去
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -452,6 +460,110 @@
         .print-sign {
             display: none;
         }
+
+        /* PDF アップロード機能のスタイル */
+        .pdf-upload-section {
+            margin: 15px 0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        
+        .upload-container h3 {
+            margin: 0 0 15px 0;
+            text-align: center;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            background-color: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        
+        .upload-area:hover {
+            border-color: #4CAF50;
+            background-color: #f0fff0;
+        }
+        
+        .upload-area.dragover {
+            border-color: #4CAF50;
+            background-color: #e8f5e8;
+        }
+        
+        .upload-content {
+            pointer-events: none;
+        }
+        
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .upload-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        
+        .upload-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .api-config {
+            display: none; /* API設定フィールドを非表示 */
+        }
+        
+        .api-config label {
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        
+        .api-input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .upload-status {
+            min-height: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .upload-status.loading {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .upload-status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .upload-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
         
         @media (max-width: 768px) {
             .grid {
@@ -506,6 +618,21 @@
             <input type="date" id="reportDate" class="date-input">
             <button class="today-btn" onclick="setToday()">今日</button>
             <span class="date-display" id="dateDisplay"></span>
+        </div>
+
+        <!-- PDF アップロード機能 -->
+        <div class="pdf-upload-section no-print">
+            <div class="upload-container">
+                <h3>PDFからデータを自動抽出</h3>
+                <div class="upload-area" id="uploadArea">
+                    <input type="file" id="pdfFileInput" accept=".pdf" style="display: none;">
+                    <div class="upload-content">
+                        <div class="upload-icon">📄</div>
+                        <p>PDFファイルをドラッグ&ドロップ<br>または<br><button class="upload-btn" onclick="document.getElementById('pdfFileInput').click()">ファイルを選択</button></p>
+                    </div>
+                </div>
+                <div class="upload-status" id="uploadStatus"></div>
+            </div>
         </div>
 
         <!-- 残高チェック表示 -->
@@ -821,7 +948,225 @@
             // 初期状態でボタンのクラスを設定
             const signBtn = document.getElementById('signBtn');
             signBtn.classList.add('positive');
+
+            // PDF アップロード機能の初期化
+            initializePdfUpload();
         });
+
+        // PDF アップロード機能の初期化
+        function initializePdfUpload() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('pdfFileInput');
+
+            // ドラッグ&ドロップイベント
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0 && files[0].type === 'application/pdf') {
+                    handlePdfFile(files[0]);
+                } else {
+                    showUploadStatus('PDFファイルを選択してください', 'error');
+                }
+            });
+
+            // クリックでファイル選択
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            // ファイル選択イベント
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handlePdfFile(e.target.files[0]);
+                }
+            });
+        }
+
+        // PDF ファイルの処理
+        async function handlePdfFile(file) {
+            showUploadStatus('PDFを解析中...', 'loading');
+
+            try {
+                // PDF を Base64 に変換
+                const base64Pdf = await convertToBase64(file);
+                
+                // プロキシAPI にリクエスト送信
+                const extractedData = await callProxyApi(base64Pdf, file.name);
+                
+                // 抽出されたデータをフォームに反映
+                if (extractedData) {
+                    populateFormWithData(extractedData);
+                    showUploadStatus('データの抽出と入力が完了しました！', 'success');
+                } else {
+                    showUploadStatus('データの抽出に失敗しました', 'error');
+                }
+            } catch (error) {
+                console.error('PDF処理エラー:', error);
+                showUploadStatus(`エラー: ${error.message}`, 'error');
+            }
+        }
+
+        // プロキシAPI を呼び出し
+        async function callProxyApi(base64Pdf, fileName) {
+            // 本番環境とローカル環境を自動判定
+            const apiEndpoint = window.location.hostname === 'localhost' 
+                ? '/api/dify-proxy'  // ローカル開発時
+                : '/.netlify/functions/dify-proxy';  // Netlify本番時（Vercelの場合は '/api/dify-proxy'）
+
+            const response = await fetch(apiEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    pdf_data: base64Pdf,
+                    file_name: fileName
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            
+            // レスポンス形式に応じて調整
+            if (result.data && result.data.outputs) {
+                return result.data.outputs;
+            } else if (result.outputs) {
+                return result.outputs;
+            } else {
+                console.log('API Response:', result);
+                return result;
+            }
+        }
+
+        // 抽出されたデータをフォームに入力
+        function populateFormWithData(data) {
+            try {
+                // データ形式の例：
+                // {
+                //   "shaho_count": 5,
+                //   "shaho_amount": 2500,
+                //   "kokuho_count": 3,
+                //   "kokuho_amount": 1800,
+                //   "kouki_count": 2,
+                //   "kouki_amount": 1200,
+                //   "jihi_count": 1,
+                //   "jihi_amount": 5000,
+                //   "bushan_note": "歯ブラシ",
+                //   "bushan_amount": 500,
+                //   "previous_difference": 1000,
+                //   "previous_difference_sign": "+",
+                //   "previous_balance": 50000
+                // }
+
+                // 社保
+                if (data.shaho_count !== undefined) {
+                    document.getElementById('shahoCount').value = data.shaho_count;
+                }
+                if (data.shaho_amount !== undefined) {
+                    document.getElementById('shahoIncome').value = data.shaho_amount;
+                }
+
+                // 国保
+                if (data.kokuho_count !== undefined) {
+                    document.getElementById('kokuhoCount').value = data.kokuho_count;
+                }
+                if (data.kokuho_amount !== undefined) {
+                    document.getElementById('kokuhoIncome').value = data.kokuho_amount;
+                }
+
+                // 後期高齢者
+                if (data.kouki_count !== undefined) {
+                    document.getElementById('koukiCount').value = data.kouki_count;
+                }
+                if (data.kouki_amount !== undefined) {
+                    document.getElementById('koukiIncome').value = data.kouki_amount;
+                }
+
+                // 自費
+                if (data.jihi_count !== undefined) {
+                    document.getElementById('jihiCount').value = data.jihi_count;
+                }
+                if (data.jihi_amount !== undefined) {
+                    document.getElementById('jihiIncome').value = data.jihi_amount;
+                }
+
+                // 物販収入
+                if (data.bushan_note !== undefined) {
+                    document.getElementById('bushanNote').value = data.bushan_note;
+                }
+                if (data.bushan_amount !== undefined) {
+                    document.getElementById('bushanIncome').value = data.bushan_amount;
+                }
+
+                // 前回差額
+                if (data.previous_difference !== undefined) {
+                    document.getElementById('previousDifference').value = Math.abs(data.previous_difference);
+                }
+                if (data.previous_difference_sign !== undefined) {
+                    differenceSign = data.previous_difference_sign;
+                    const signBtn = document.getElementById('signBtn');
+                    signBtn.textContent = differenceSign;
+                    signBtn.classList.remove('positive', 'negative');
+                    signBtn.classList.add(differenceSign === '+' ? 'positive' : 'negative');
+                    updatePrintSign();
+                }
+
+                // 前日繰越
+                if (data.previous_balance !== undefined) {
+                    document.getElementById('previousBalance').value = data.previous_balance;
+                }
+
+                // その他の追加項目（必要に応じて）
+                if (data.extra1_subject !== undefined) {
+                    document.getElementById('extraIncome1Subject').value = data.extra1_subject;
+                }
+                if (data.extra1_destination !== undefined) {
+                    document.getElementById('extraIncome1Destination').value = data.extra1_destination;
+                }
+                if (data.extra1_note !== undefined) {
+                    document.getElementById('extraIncome1Note').value = data.extra1_note;
+                }
+                if (data.extra1_amount !== undefined) {
+                    document.getElementById('extraIncome1Amount').value = data.extra1_amount;
+                }
+
+                // 計算を更新
+                updateCalculations();
+
+            } catch (error) {
+                console.error('データ入力エラー:', error);
+                showUploadStatus('データの入力中にエラーが発生しました', 'error');
+            }
+        }
+
+        // アップロード状況を表示
+        function showUploadStatus(message, type) {
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `upload-status ${type}`;
+            
+            if (type === 'success' || type === 'error') {
+                setTimeout(() => {
+                    statusDiv.textContent = '';
+                    statusDiv.className = 'upload-status';
+                }, 5000);
+            }
+        }
 
         // 今日の日付を設定
         function setToday() {
