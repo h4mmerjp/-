@@ -140,11 +140,7 @@
                 display: none !important;
             }
             
-            .pdf-sign-display {
-                display: none !important;
-            }
-            
-            .sign-indicator {
+            .difference-btn-single {
                 display: none !important;
             }
             
@@ -418,51 +414,6 @@
             font-size: 10px;
             color: #666;
             font-style: italic;
-        }
-        
-        .pdf-sign-display {
-            display: none;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-        }
-        
-        .pdf-sign-display.show {
-            display: flex;
-        }
-        
-        .sign-indicator {
-            background-color: #e0e0e0;
-            border: 2px solid #333;
-            padding: 4px 12px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 6px;
-            min-width: 40px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        
-        .sign-indicator.positive {
-            background-color: #4CAF50;
-            color: white;
-            border-color: #45a049;
-        }
-        
-        .sign-indicator.negative {
-            background-color: #f44336;
-            color: white;
-            border-color: #d32f2f;
-        }
-        
-        .sign-indicator.positive::before {
-            content: "収入増 ";
-            font-size: 10px;
-        }
-        
-        .sign-indicator.negative::before {
-            content: "支出増 ";
-            font-size: 10px;
         }
         
         .difference-controls {
@@ -862,9 +813,6 @@
                                     <button type="button" class="difference-btn-single" id="signBtn" onclick="toggleDifferenceSign()">+</button>
                                 </div>
                                 <span class="print-sign" id="printSign">+</span>
-                                <div class="pdf-sign-display" id="pdfSignDisplay">
-                                    <span class="sign-indicator" id="signIndicator">+</span>
-                                </div>
                             </td>
                             <td><input type="number" class="input-field print-input-m" id="previousDifference" oninput="updateCalculations()"></td>
                         </tr>
@@ -1231,14 +1179,6 @@
                         document.getElementById('differenceDisplay').textContent = 'PDF自動設定';
                         document.getElementById('differenceControls').classList.add('hidden');
                         
-                        // PDFからの符号表示を有効化
-                        const pdfSignDisplay = document.getElementById('pdfSignDisplay');
-                        const signIndicator = document.getElementById('signIndicator');
-                        pdfSignDisplay.classList.add('show');
-                        signIndicator.textContent = differenceSign;
-                        signIndicator.classList.remove('positive', 'negative');
-                        signIndicator.classList.add(differenceSign === '+' ? 'positive' : 'negative');
-                        
                         updatePrintSign();
                         console.log('前回差額設定:', previousDiffValue, '符号:', differenceSign);
                     }
@@ -1473,10 +1413,6 @@
             // 手動入力モードに戻す
             document.getElementById('differenceDisplay').textContent = '手動入力';
             document.getElementById('differenceControls').classList.remove('hidden');
-            
-            // PDF符号表示を非表示にする
-            const pdfSignDisplay = document.getElementById('pdfSignDisplay');
-            pdfSignDisplay.classList.remove('show');
             
             updatePrintSign(); // 印刷用符号表示も更新
             
