@@ -1030,10 +1030,8 @@
 
         // プロキシAPI を呼び出し
         async function callProxyApi(base64Pdf, fileName) {
-            // 本番環境とローカル環境を自動判定
-            const apiEndpoint = window.location.hostname === 'localhost' 
-                ? '/api/dify-proxy'  // ローカル開発時
-                : '/.netlify/functions/dify-proxy';  // Netlify本番時（Vercelの場合は '/api/dify-proxy'）
+            // VercelのAPIエンドポイントを直接指定
+            const apiEndpoint = 'https://h4mmerjp.vercel.app/api/dify-proxy';
 
             const response = await fetch(apiEndpoint, {
                 method: 'POST',
@@ -1053,13 +1051,14 @@
 
             const result = await response.json();
             
-            // レスポンス形式に応じて調整
+            // Difyのレスポンス形式に応じて調整
             if (result.data && result.data.outputs) {
                 return result.data.outputs;
             } else if (result.outputs) {
                 return result.outputs;
             } else {
                 console.log('API Response:', result);
+                // Difyの直接出力形式に対応
                 return result;
             }
         }
@@ -1077,64 +1076,79 @@
         // 抽出されたデータをフォームに入力
         function populateFormWithData(data) {
             try {
-                // データ形式の例：
-                // {
-                //   "shaho_count": 42,
-                //   "shaho_amount": 130500,
-                //   "kokuho_count": 4,
-                //   "kokuho_amount": 6050,
-                //   "kouki_count": 5,
-                //   "kouki_amount": 3390,
-                //   "jihi_count": 1,
-                //   "jihi_amount": 10060,
-                //   "bushan_note": "物販",
-                //   "bushan_amount": 1560,
-                //   "previous_difference": -700
-                // }
+                console.log('受信したデータ:', data); // デバッグ用
+
+                // 数値の文字列をパース（カンマを除去）
+                function parseNumber(value) {
+                    if (typeof value === 'string') {
+                        return parseInt(value.replace(/,/g, '')) || 0;
+                    }
+                    return parseInt(value) || 0;
+                }
+
+                // Difyのレスポンス形式を柔軟に処理
+                let actualData = data;
+                
+                // 様々なレスポンス形式に対応
+                if (data.data && data.data.outputs) {
+                    actualData = data.data.outputs;
+                } else if (data.outputs) {
+                    actualData = data.outputs;
+                } else if (data.__is_success !== undefined) {
+                    // 成功チェック
+                    if (data.__is_success !== 1) {
+                        throw new Error(data.__reason || 'データ抽出に失敗しました');
+                    }
+                    actualData = data;
+                }
+
+                console.log('処理対象データ:', actualData); // デバッグ用
 
                 // 社保
-                if (data.shaho_count !== undefined) {
-                    document.getElementById('shahoCount').value = data.shaho_count;
+                if (actualData.shaho_count !== undefined) {
+                    document.getElementById('shahoCount').value = parseNumber(actualData.shaho_count);
+                    console.log('社保人数設定:', parseNumber(actualData.shaho_count));
                 }
-                if (data.shaho_amount !== undefined) {
-                    document.getElementById('shahoIncome').value = data.shaho_amount;
+                if (actualData.shaho_amount !== undefined) {
+                    document.getElementById('shahoIncome').value = parseNumber(actualData.shaho_amount);
+                    console.log('社保金額設定:', parseNumber(actualData.shaho_amount));
                 }
 
                 // 国保
-                if (data.kokuho_count !== undefined) {
-                    document.getElementById('kokuhoCount').value = data.kokuho_count;
+                if (actualData.kokuho_count !== undefined) {
+                    document.getElementById('kokuhoCount').value = parseNumber(actualData.kokuho_count);
                 }
-                if (data.kokuho_amount !== undefined) {
-                    document.getElementById('kokuhoIncome').value = data.kokuho_amount;
+                if (actualData.kokuho_amount !== undefined) {
+                    document.getElementById('kokuhoIncome').value = parseNumber(actualData.kokuho_amount);
                 }
 
                 // 後期高齢者
-                if (data.kouki_count !== undefined) {
-                    document.getElementById('koukiCount').value = data.kouki_count;
+                if (actualData.kouki_count !== undefined) {
+                    document.getElementById('koukiCount').value = parseNumber(actualData.kouki_count);
                 }
-                if (data.kouki_amount !== undefined) {
-                    document.getElementById('koukiIncome').value = data.kouki_amount;
+                if (actualData.kouki_amount !== undefined) {
+                    document.getElementById('koukiIncome').value = parseNumber(actualData.kouki_amount);
                 }
 
                 // 自費
-                if (data.jihi_count !== undefined) {
-                    document.getElementById('jihiCount').value = data.jihi_count;
+                if (actualData.jihi_count !== undefined) {
+                    document.getElementById('jihiCount').value = parseNumber(actualData.jihi_count);
                 }
-                if (data.jihi_amount !== undefined) {
-                    document.getElementById('jihiIncome').value = data.jihi_amount;
+                if (actualData.jihi_amount !== undefined) {
+                    document.getElementById('jihiIncome').value = parseNumber(actualData.jihi_amount);
                 }
 
                 // 物販収入
-                if (data.bushan_note !== undefined) {
-                    document.getElementById('bushanNote').value = data.bushan_note;
+                if (actualData.bushan_note !== undefined) {
+                    document.getElementById('bushanNote').value = actualData.bushan_note;
                 }
-                if (data.bushan_amount !== undefined) {
-                    document.getElementById('bushanIncome').value = data.bushan_amount;
+                if (actualData.bushan_amount !== undefined) {
+                    document.getElementById('bushanIncome').value = parseNumber(actualData.bushan_amount);
                 }
 
                 // 前回差額（符号を含む数値として処理）
-                if (data.previous_difference !== undefined) {
-                    const previousDiffValue = parseInt(data.previous_difference);
+                if (actualData.previous_difference !== undefined) {
+                    const previousDiffValue = parseNumber(actualData.previous_difference);
                     document.getElementById('previousDifference').value = Math.abs(previousDiffValue);
                     
                     // 符号を自動設定
@@ -1149,33 +1163,35 @@
                     document.getElementById('differenceControls').classList.add('hidden');
                     
                     updatePrintSign();
+                    console.log('前回差額設定:', previousDiffValue, '符号:', differenceSign);
                 }
 
                 // 前日繰越（必要に応じて）
-                if (data.previous_balance !== undefined) {
-                    document.getElementById('previousBalance').value = data.previous_balance;
+                if (actualData.previous_balance !== undefined) {
+                    document.getElementById('previousBalance').value = parseNumber(actualData.previous_balance);
                 }
 
                 // その他の追加項目（必要に応じて）
-                if (data.extra1_subject !== undefined) {
-                    document.getElementById('extraIncome1Subject').value = data.extra1_subject;
+                if (actualData.extra1_subject !== undefined) {
+                    document.getElementById('extraIncome1Subject').value = actualData.extra1_subject;
                 }
-                if (data.extra1_destination !== undefined) {
-                    document.getElementById('extraIncome1Destination').value = data.extra1_destination;
+                if (actualData.extra1_destination !== undefined) {
+                    document.getElementById('extraIncome1Destination').value = actualData.extra1_destination;
                 }
-                if (data.extra1_note !== undefined) {
-                    document.getElementById('extraIncome1Note').value = data.extra1_note;
+                if (actualData.extra1_note !== undefined) {
+                    document.getElementById('extraIncome1Note').value = actualData.extra1_note;
                 }
-                if (data.extra1_amount !== undefined) {
-                    document.getElementById('extraIncome1Amount').value = data.extra1_amount;
+                if (actualData.extra1_amount !== undefined) {
+                    document.getElementById('extraIncome1Amount').value = parseNumber(actualData.extra1_amount);
                 }
 
                 // 計算を更新
                 updateCalculations();
+                console.log('データ入力完了');
 
             } catch (error) {
                 console.error('データ入力エラー:', error);
-                showUploadStatus('データの入力中にエラーが発生しました', 'error');
+                showUploadStatus('データの入力中にエラーが発生しました: ' + error.message, 'error');
             }
         }
 
