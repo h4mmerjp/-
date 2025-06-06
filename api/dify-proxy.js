@@ -4,7 +4,6 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // OPTIONSリクエスト（プリフライトリクエスト）に対応
   if (req.method === 'OPTIONS') {
     res.status(200).end();
     return;
@@ -15,17 +14,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('Environment variables check:', {
-      hasApiUrl: !!process.env.DIFY_API_URL,
-      hasApiKey: !!process.env.DIFY_API_KEY
-    });
-
     const { pdf_data, file_name } = req.body;
 
-    if (!process.env.DIFY_API_URL || !process.env.DIFY_API_KEY) {
-      throw new Error('Environment variables not set');
-    }
-
+    // Difyのワークフローに合わせた形式で送信
     const response = await fetch(process.env.DIFY_API_URL, {
       method: 'POST',
       headers: {
@@ -33,7 +24,9 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        inputs: { pdf_data, file_name },
+        inputs: { 
+          file: pdf_data  // 'file' パラメータとして送信
+        },
         response_mode: "blocking",
         user: "dental-clinic-user"
       })
