@@ -1,12 +1,10 @@
 export default async function handler(req, res) {
-  // CORS ヘッダーを設定
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
@@ -16,20 +14,31 @@ export default async function handler(req, res) {
   try {
     const { pdf_data, file_name } = req.body;
 
-    // Difyのワークフローに合わせた形式で送信
+    // Base64をBufferに変換
+    const buffer = Buffer.from(pdf_data, 'base64');
+    
+    // FormDataを作成
+    const FormData = require('form-data');
+    const form = new FormData();
+    
+    // ファイルとして追加
+    form.append('file', buffer, {
+      filename: file_name || 'document.pdf',
+      contentType: 'application/pdf'
+    });
+    
+    // その他のパラメータ
+    form.append('inputs', JSON.stringify({}));
+    form.append('response_mode', 'blocking');
+    form.append('user', 'dental-clinic-user');
+
     const response = await fetch(process.env.DIFY_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
-        'Content-Type': 'application/json'
+        ...form.getHeaders()
       },
-      body: JSON.stringify({
-        inputs: { 
-          file: pdf_data  // 'file' パラメータとして送信
-        },
-        response_mode: "blocking",
-        user: "dental-clinic-user"
-      })
+      body: form
     });
 
     if (!response.ok) {
