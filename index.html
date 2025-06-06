@@ -132,12 +132,13 @@
                 display: inline !important;
             }
             
-            .difference-btn {
-                font-size: 7px !important;
-                padding: 0 !important;
+            .difference-btn-single {
+                font-size: 8px !important;
+                padding: 1px 4px !important;
                 margin: 0 !important;
-                width: 8px !important;
-                height: 10px !important;
+                width: 15px !important;
+                height: 12px !important;
+                min-width: 15px !important;
             }
             
             .balance-check {
@@ -413,26 +414,28 @@
             gap: 5px;
         }
         
-        .difference-btn {
+        .difference-btn-single {
             background-color: #e0e0e0;
             border: 1px solid black;
-            padding: 2px 6px;
-            font-size: 10px;
+            padding: 2px 8px;
+            font-size: 12px;
             cursor: pointer;
-            min-width: 20px;
+            min-width: 30px;
+            font-weight: bold;
         }
         
-        .difference-btn.active {
+        .difference-btn-single.positive {
             background-color: #4CAF50;
             color: white;
         }
         
-        .difference-btn:hover {
-            background-color: #d0d0d0;
+        .difference-btn-single.negative {
+            background-color: #f44336;
+            color: white;
         }
         
-        .difference-btn.active:hover {
-            background-color: #45a049;
+        .difference-btn-single:hover {
+            opacity: 0.8;
         }
         
         .balance-check {
@@ -674,8 +677,7 @@
                             <td>繰越</td>
                             <td>
                                 <div class="difference-controls">
-                                    <button type="button" class="difference-btn active" id="plusBtn" onclick="toggleDifferenceSign('+')">+</button>
-                                    <button type="button" class="difference-btn" id="minusBtn" onclick="toggleDifferenceSign('-')">-</button>
+                                    <button type="button" class="difference-btn-single" id="signBtn" onclick="toggleDifferenceSign()">+</button>
                                 </div>
                                 <span class="print-sign" id="printSign">+</span>
                             </td>
@@ -820,6 +822,10 @@
             setToday();
             updateCalculations();
             updatePrintSign(); // 印刷用符号表示を初期化
+            
+            // 初期状態でボタンのクラスを設定
+            const signBtn = document.getElementById('signBtn');
+            signBtn.classList.add('positive');
         });
 
         // 今日の日付を設定
@@ -865,11 +871,23 @@
             printSign.textContent = differenceSign;
         }
 
-        // 前回差額の符号切り替え
-        function toggleDifferenceSign(sign) {
-            differenceSign = sign;
-            document.getElementById('plusBtn').classList.toggle('active', sign === '+');
-            document.getElementById('minusBtn').classList.toggle('active', sign === '-');
+        // 前回差額の符号切り替え（1つのボタンでトグル）
+        function toggleDifferenceSign() {
+            // 符号を切り替え
+            differenceSign = differenceSign === '+' ? '-' : '+';
+            
+            // ボタンの表示と色を更新
+            const signBtn = document.getElementById('signBtn');
+            signBtn.textContent = differenceSign;
+            
+            // クラスを更新
+            signBtn.classList.remove('positive', 'negative');
+            if (differenceSign === '+') {
+                signBtn.classList.add('positive');
+            } else {
+                signBtn.classList.add('negative');
+            }
+            
             updatePrintSign(); // 印刷用符号表示を更新
             updateCalculations();
         }
@@ -985,8 +1003,10 @@
             
             // 前回差額の符号を+にリセット
             differenceSign = '+';
-            document.getElementById('plusBtn').classList.add('active');
-            document.getElementById('minusBtn').classList.remove('active');
+            const signBtn = document.getElementById('signBtn');
+            signBtn.textContent = '+';
+            signBtn.classList.remove('positive', 'negative');
+            signBtn.classList.add('positive');
             updatePrintSign(); // 印刷用符号表示も更新
             
             document.getElementById('confirmModal').classList.add('hidden');
