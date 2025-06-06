@@ -150,6 +150,14 @@
                 background-color: #ccffcc !important;
                 border-color: #00aa00 !important;
             }
+
+            /* 印刷時の符号表示 */
+            .print-sign {
+                display: inline !important;
+                font-weight: bold !important;
+                font-size: 9px !important;
+                margin: 0 2px !important;
+            }
         }
         
         body {
@@ -441,6 +449,11 @@
             background-color: #ccffcc;
             border-color: #00aa00;
         }
+
+        /* 印刷時の符号表示用 - 画面では非表示 */
+        .print-sign {
+            display: none;
+        }
         
         @media (max-width: 768px) {
             .grid {
@@ -664,6 +677,7 @@
                                     <button type="button" class="difference-btn active" id="plusBtn" onclick="toggleDifferenceSign('+')">+</button>
                                     <button type="button" class="difference-btn" id="minusBtn" onclick="toggleDifferenceSign('-')">-</button>
                                 </div>
+                                <span class="print-sign" id="printSign">+</span>
                             </td>
                             <td><input type="number" class="input-field print-input-m" id="previousDifference" oninput="updateCalculations()"></td>
                         </tr>
@@ -805,6 +819,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             setToday();
             updateCalculations();
+            updatePrintSign(); // 印刷用符号表示を初期化
         });
 
         // 今日の日付を設定
@@ -844,11 +859,18 @@
         // 日付変更時
         document.getElementById('reportDate').addEventListener('change', updateDateDisplay);
 
+        // 印刷用符号表示を更新
+        function updatePrintSign() {
+            const printSign = document.getElementById('printSign');
+            printSign.textContent = differenceSign;
+        }
+
         // 前回差額の符号切り替え
         function toggleDifferenceSign(sign) {
             differenceSign = sign;
             document.getElementById('plusBtn').classList.toggle('active', sign === '+');
             document.getElementById('minusBtn').classList.toggle('active', sign === '-');
+            updatePrintSign(); // 印刷用符号表示を更新
             updateCalculations();
         }
 
@@ -965,6 +987,7 @@
             differenceSign = '+';
             document.getElementById('plusBtn').classList.add('active');
             document.getElementById('minusBtn').classList.remove('active');
+            updatePrintSign(); // 印刷用符号表示も更新
             
             document.getElementById('confirmModal').classList.add('hidden');
             updateCalculations();
