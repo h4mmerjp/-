@@ -22,7 +22,7 @@
                 overflow: visible !important;
                 font-family: 'MS Gothic', monospace !important;
             }
-            input { 
+            input, button { 
                 border: none !important; 
                 background: none !important; 
                 color: black !important; 
@@ -120,7 +120,6 @@
                 margin-bottom: 4px !important;
             }
             
-            /* 印刷時のセル幅調整 */
             .col-item { width: 30% !important; }
             .col-count { width: 25% !important; }
             .col-amount { width: 45% !important; }
@@ -128,6 +127,29 @@
             .col-dest { width: 25% !important; }
             .col-note { width: 25% !important; }
             .col-value { width: 30% !important; }
+            
+            .difference-controls {
+                display: inline !important;
+            }
+            
+            .difference-btn {
+                font-size: 7px !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 8px !important;
+                height: 10px !important;
+            }
+            
+            .balance-check {
+                background-color: #ffffcc !important;
+                border: 2px solid #ff0000 !important;
+                font-weight: bold !important;
+            }
+            
+            .balance-check.match {
+                background-color: #ccffcc !important;
+                border-color: #00aa00 !important;
+            }
         }
         
         body {
@@ -376,6 +398,50 @@
             display: none;
         }
         
+        .difference-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .difference-btn {
+            background-color: #e0e0e0;
+            border: 1px solid black;
+            padding: 2px 6px;
+            font-size: 10px;
+            cursor: pointer;
+            min-width: 20px;
+        }
+        
+        .difference-btn.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .difference-btn:hover {
+            background-color: #d0d0d0;
+        }
+        
+        .difference-btn.active:hover {
+            background-color: #45a049;
+        }
+        
+        .balance-check {
+            background-color: #ffffcc;
+            border: 2px solid #ff0000;
+            font-weight: bold;
+            padding: 8px;
+            text-align: center;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        .balance-check.match {
+            background-color: #ccffcc;
+            border-color: #00aa00;
+        }
+        
         @media (max-width: 768px) {
             .grid {
                 grid-template-columns: 1fr;
@@ -429,6 +495,11 @@
             <input type="date" id="reportDate" class="date-input">
             <button class="today-btn" onclick="setToday()">今日</button>
             <span class="date-display" id="dateDisplay"></span>
+        </div>
+
+        <!-- 残高チェック表示 -->
+        <div class="balance-check no-print" id="balanceCheck">
+            残高チェック: 計算中...
         </div>
 
         <!-- 確認ダイアログ -->
@@ -490,7 +561,7 @@
                             <td class="col-amount"><span id="stock1Total">0</span></td>
                         </tr>
                         <tr class="total-row">
-                            <td class="col-item">ストック</td>
+                            <td class="col-item">ストック合計</td>
                             <td class="col-count"></td>
                             <td class="col-amount"><span id="stockGrandTotal">0</span></td>
                         </tr>
@@ -556,14 +627,14 @@
                             <td class="col-amount"><span id="coin1Total">0</span></td>
                         </tr>
                         <tr class="total-row">
-                            <td class="col-item">ストック</td>
-                            <td class="col-count"></td>
-                            <td class="col-amount"><span id="stockTotal2">0</span></td>
-                        </tr>
-                        <tr class="total-row">
-                            <td class="col-item">本日の残高</td>
+                            <td class="col-item">金種合計</td>
                             <td class="col-count"></td>
                             <td class="col-amount"><span id="currencyTotal">0</span></td>
+                        </tr>
+                        <tr class="total-row">
+                            <td class="col-item">総残高</td>
+                            <td class="col-count"></td>
+                            <td class="col-amount"><span id="totalBalance">0</span></td>
                         </tr>
                     </tbody>
                 </table>
@@ -585,6 +656,17 @@
                         </tr>
                     </thead>
                     <tbody>
+                        <tr>
+                            <td>前回差額</td>
+                            <td>繰越</td>
+                            <td>
+                                <div class="difference-controls">
+                                    <button type="button" class="difference-btn active" id="plusBtn" onclick="toggleDifferenceSign('+')">+</button>
+                                    <button type="button" class="difference-btn" id="minusBtn" onclick="toggleDifferenceSign('-')">-</button>
+                                </div>
+                            </td>
+                            <td><input type="number" class="input-field print-input-m" id="previousDifference" oninput="updateCalculations()"></td>
+                        </tr>
                         <tr>
                             <td>社保</td>
                             <td>窓口収入合計</td>
@@ -649,10 +731,10 @@
                     </thead>
                     <tbody>
                         <tr>
-                            <td>前回差額</td>
-                            <td>返金</td>
-                            <td></td>
-                            <td><input type="number" class="input-field print-input-m" id="refund" oninput="updateCalculations()"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="expense1Subject"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="expense1Destination"></td>
+                            <td><input type="text" class="input-field input-field-center print-input-center" id="expense1Note"></td>
+                            <td><input type="number" class="input-field print-input-m" id="expense1" oninput="updateCalculations()"></td>
                         </tr>
                         <tr>
                             <td><input type="text" class="input-field input-field-center print-input-center" id="expense2Subject"></td>
@@ -717,6 +799,8 @@
     </div>
 
     <script>
+        let differenceSign = '+'; // デフォルトは+
+
         // 初期化
         document.addEventListener('DOMContentLoaded', function() {
             setToday();
@@ -760,6 +844,14 @@
         // 日付変更時
         document.getElementById('reportDate').addEventListener('change', updateDateDisplay);
 
+        // 前回差額の符号切り替え
+        function toggleDifferenceSign(sign) {
+            differenceSign = sign;
+            document.getElementById('plusBtn').classList.toggle('active', sign === '+');
+            document.getElementById('minusBtn').classList.toggle('active', sign === '-');
+            updateCalculations();
+        }
+
         // 計算更新
         function updateCalculations() {
             // ストック計算
@@ -781,7 +873,6 @@
             });
             
             document.getElementById('stockGrandTotal').textContent = stockTotal;
-            document.getElementById('stockTotal2').textContent = stockTotal;
 
             // 金種計算
             const currencyItems = [
@@ -806,10 +897,18 @@
             });
             
             document.getElementById('currencyTotal').textContent = currencyTotal;
+            
+            // 総残高（ストック + 金種）
+            const totalBalance = stockTotal + currencyTotal;
+            document.getElementById('totalBalance').textContent = totalBalance;
 
-            // 収入計算
+            // 前回差額の処理
+            const previousDifferenceValue = parseInt(document.getElementById('previousDifference').value) || 0;
+            const previousDifferenceAmount = differenceSign === '+' ? previousDifferenceValue : -previousDifferenceValue;
+
+            // 収入計算（前回差額を含む）
             const incomeItems = ['shahoIncome', 'kokuhoIncome', 'koukiIncome', 'jihiIncome', 'bushanIncome', 'extraIncome1Amount', 'extraIncome2Amount'];
-            let incomeTotal = 0;
+            let incomeTotal = previousDifferenceAmount;
             incomeItems.forEach(id => {
                 incomeTotal += parseInt(document.getElementById(id).value) || 0;
             });
@@ -817,7 +916,7 @@
             document.getElementById('todayIncome').textContent = incomeTotal;
 
             // 出金計算
-            const expenseItems = ['refund', 'expense2', 'expense3', 'expenseDirector'];
+            const expenseItems = ['expense1', 'expense2', 'expense3', 'expenseDirector'];
             let expenseTotal = 0;
             expenseItems.forEach(id => {
                 expenseTotal += parseInt(document.getElementById(id).value) || 0;
@@ -829,6 +928,23 @@
             const previousBalance = parseInt(document.getElementById('previousBalance').value) || 0;
             const finalBalance = previousBalance + incomeTotal - expenseTotal;
             document.getElementById('finalBalance').textContent = finalBalance;
+
+            // 残高チェック
+            updateBalanceCheck(totalBalance, finalBalance);
+        }
+
+        // 残高チェック機能
+        function updateBalanceCheck(physicalBalance, calculatedBalance) {
+            const balanceCheck = document.getElementById('balanceCheck');
+            const difference = physicalBalance - calculatedBalance;
+            
+            if (difference === 0) {
+                balanceCheck.textContent = `残高チェック: ✓ 一致しています (${physicalBalance.toLocaleString()}円)`;
+                balanceCheck.className = 'balance-check match no-print';
+            } else {
+                balanceCheck.textContent = `残高チェック: ✗ 差額 ${difference.toLocaleString()}円 (実物: ${physicalBalance.toLocaleString()}円 / 計算: ${calculatedBalance.toLocaleString()}円)`;
+                balanceCheck.className = 'balance-check no-print';
+            }
         }
 
         // 全クリア
@@ -844,6 +960,11 @@
                     input.value = '';
                 }
             });
+            
+            // 前回差額の符号を+にリセット
+            differenceSign = '+';
+            document.getElementById('plusBtn').classList.add('active');
+            document.getElementById('minusBtn').classList.remove('active');
             
             document.getElementById('confirmModal').classList.add('hidden');
             updateCalculations();
@@ -886,6 +1007,13 @@
                 const data = {
                     date: document.getElementById('reportDate').value || 'no-date',
                     income: {
+                        previousDifference: {
+                            sign: differenceSign,
+                            amount: parseInt(document.getElementById('previousDifference').value) || 0,
+                            signedAmount: differenceSign === '+' ? 
+                                (parseInt(document.getElementById('previousDifference').value) || 0) : 
+                                -(parseInt(document.getElementById('previousDifference').value) || 0)
+                        },
                         shaho: {
                             count: parseInt(document.getElementById('shahoCount').value) || 0,
                             amount: parseInt(document.getElementById('shahoIncome').value) || 0
@@ -921,7 +1049,12 @@
                         total: parseInt(document.getElementById('incomeTotal').textContent) || 0
                     },
                     expense: {
-                        refund: parseInt(document.getElementById('refund').value) || 0,
+                        expense1: {
+                            subject: document.getElementById('expense1Subject').value || '',
+                            destination: document.getElementById('expense1Destination').value || '',
+                            note: document.getElementById('expense1Note').value || '',
+                            amount: parseInt(document.getElementById('expense1').value) || 0
+                        },
                         expense2: {
                             subject: document.getElementById('expense2Subject').value || '',
                             destination: document.getElementById('expense2Destination').value || '',
@@ -962,6 +1095,13 @@
                         coin5: parseInt(document.getElementById('coin5').value) || 0,
                         coin1: parseInt(document.getElementById('coin1').value) || 0,
                         total: parseInt(document.getElementById('currencyTotal').textContent) || 0
+                    },
+                    totalBalance: parseInt(document.getElementById('totalBalance').textContent) || 0,
+                    balanceCheck: {
+                        physicalBalance: parseInt(document.getElementById('totalBalance').textContent) || 0,
+                        calculatedBalance: parseInt(document.getElementById('finalBalance').textContent) || 0,
+                        difference: (parseInt(document.getElementById('totalBalance').textContent) || 0) - (parseInt(document.getElementById('finalBalance').textContent) || 0),
+                        isMatched: ((parseInt(document.getElementById('totalBalance').textContent) || 0) - (parseInt(document.getElementById('finalBalance').textContent) || 0)) === 0
                     }
                 };
 
