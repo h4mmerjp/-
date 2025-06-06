@@ -410,11 +410,21 @@
             display: none;
         }
         
+        .difference-display {
+            font-size: 10px;
+            color: #666;
+            font-style: italic;
+        }
+        
         .difference-controls {
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 5px;
+        }
+        
+        .difference-controls.hidden {
+            display: none;
         }
         
         .difference-btn-single {
@@ -798,7 +808,8 @@
                             <td>前回差額</td>
                             <td>繰越</td>
                             <td>
-                                <div class="difference-controls">
+                                <span class="difference-display" id="differenceDisplay">手動入力</span>
+                                <div class="difference-controls" id="differenceControls">
                                     <button type="button" class="difference-btn-single" id="signBtn" onclick="toggleDifferenceSign()">+</button>
                                 </div>
                                 <span class="print-sign" id="printSign">+</span>
@@ -1058,19 +1069,17 @@
             try {
                 // データ形式の例：
                 // {
-                //   "shaho_count": 5,
-                //   "shaho_amount": 2500,
-                //   "kokuho_count": 3,
-                //   "kokuho_amount": 1800,
-                //   "kouki_count": 2,
-                //   "kouki_amount": 1200,
+                //   "shaho_count": 42,
+                //   "shaho_amount": 130500,
+                //   "kokuho_count": 4,
+                //   "kokuho_amount": 6050,
+                //   "kouki_count": 5,
+                //   "kouki_amount": 3390,
                 //   "jihi_count": 1,
-                //   "jihi_amount": 5000,
-                //   "bushan_note": "歯ブラシ",
-                //   "bushan_amount": 500,
-                //   "previous_difference": 1000,
-                //   "previous_difference_sign": "+",
-                //   "previous_balance": 50000
+                //   "jihi_amount": 10060,
+                //   "bushan_note": "物販",
+                //   "bushan_amount": 1560,
+                //   "previous_difference": -700
                 // }
 
                 // 社保
@@ -1113,20 +1122,26 @@
                     document.getElementById('bushanIncome').value = data.bushan_amount;
                 }
 
-                // 前回差額
+                // 前回差額（符号を含む数値として処理）
                 if (data.previous_difference !== undefined) {
-                    document.getElementById('previousDifference').value = Math.abs(data.previous_difference);
-                }
-                if (data.previous_difference_sign !== undefined) {
-                    differenceSign = data.previous_difference_sign;
+                    const previousDiffValue = parseInt(data.previous_difference);
+                    document.getElementById('previousDifference').value = Math.abs(previousDiffValue);
+                    
+                    // 符号を自動設定
+                    differenceSign = previousDiffValue >= 0 ? '+' : '-';
                     const signBtn = document.getElementById('signBtn');
                     signBtn.textContent = differenceSign;
                     signBtn.classList.remove('positive', 'negative');
                     signBtn.classList.add(differenceSign === '+' ? 'positive' : 'negative');
+                    
+                    // PDF読み込み時は手動ボタンを隠し、自動設定を表示
+                    document.getElementById('differenceDisplay').textContent = 'PDF自動設定';
+                    document.getElementById('differenceControls').classList.add('hidden');
+                    
                     updatePrintSign();
                 }
 
-                // 前日繰越
+                // 前日繰越（必要に応じて）
                 if (data.previous_balance !== undefined) {
                     document.getElementById('previousBalance').value = data.previous_balance;
                 }
@@ -1347,6 +1362,11 @@
             signBtn.textContent = '+';
             signBtn.classList.remove('positive', 'negative');
             signBtn.classList.add('positive');
+            
+            // 手動入力モードに戻す
+            document.getElementById('differenceDisplay').textContent = '手動入力';
+            document.getElementById('differenceControls').classList.remove('hidden');
+            
             updatePrintSign(); // 印刷用符号表示も更新
             
             document.getElementById('confirmModal').classList.add('hidden');
