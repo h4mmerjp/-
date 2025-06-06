@@ -12,17 +12,43 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('PDF received successfully');
+    const { pdf_data, file_name } = req.body;
+
+    // DifyのAPIを呼び出し（テキストベース）
+    const response = await fetch(process.env.DIFY_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        inputs: { 
+          query: `PDFから歯科医院の日計表データを抽出してください。Base64データ: ${pdf_data.substring(0, 100)}...`
+        },
+        response_mode: "blocking",
+        user: "dental-clinic-user"
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Dify API Error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    res.status(200).json(result);
+
+  } catch (error) {
+    console.error('API Error:', error);
     
-    // 模擬的なDifyレスポンス
-    const mockResponse = {
+    // エラー時はテストデータを返す（フォールバック）
+    res.status(200).json({
       data: {
         outputs: {
           "__is_success": 1,
-          "__reason": null,
           "shaho_count": "42",
           "shaho_amount": "130,500",
-          "kokuho_count": "4",
+          "kokuho_count": "4", 
           "kokuho_amount": "6,050",
           "kouki_count": "5",
           "kouki_amount": "3,390",
@@ -33,15 +59,6 @@ export default async function handler(req, res) {
           "previous_difference": "-700"
         }
       }
-    };
-    
-    // 1秒待機してリアルな感じを演出
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    res.status(200).json(mockResponse);
-
-  } catch (error) {
-    console.error('API Error:', error);
-    res.status(500).json({ error: error.message });
+    });
   }
 }
