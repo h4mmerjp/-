@@ -841,6 +841,12 @@
                             <td><input type="number" class="input-field print-input-m" id="jihiIncome" oninput="updateCalculations()"></td>
                         </tr>
                         <tr>
+                            <td>保険なし</td>
+                            <td>窓口収入合計</td>
+                            <td><input type="number" class="input-field print-input-s" id="hokenNashiCount" oninput="updateCalculations()">名</td>
+                            <td><input type="number" class="input-field print-input-m" id="hokenNashiIncome" oninput="updateCalculations()"></td>
+                        </tr>
+                        <tr>
                             <td>物販収入</td>
                             <td>窓口収入合計</td>
                             <td><input type="text" class="input-field input-field-center print-input-center" id="bushanNote"></td>
@@ -1130,12 +1136,20 @@
                     document.getElementById('koukiIncome').value = parseNumber(actualData.kouki_amount);
                 }
 
-                // 自費
+                // 自費（純粋な自費診療）
                 if (actualData.jihi_count !== undefined) {
                     document.getElementById('jihiCount').value = parseNumber(actualData.jihi_count);
                 }
                 if (actualData.jihi_amount !== undefined) {
                     document.getElementById('jihiIncome').value = parseNumber(actualData.jihi_amount);
+                }
+
+                // 保険なし（保険適用外）
+                if (actualData.hoken_nashi_count !== undefined) {
+                    document.getElementById('hokenNashiCount').value = parseNumber(actualData.hoken_nashi_count);
+                }
+                if (actualData.hoken_nashi_amount !== undefined) {
+                    document.getElementById('hokenNashiIncome').value = parseNumber(actualData.hoken_nashi_amount);
                 }
 
                 // 物販収入
@@ -1328,7 +1342,7 @@
             const previousDifferenceAmount = differenceSign === '+' ? previousDifferenceValue : -previousDifferenceValue;
 
             // 収入計算（前回差額を含む）
-            const incomeItems = ['shahoIncome', 'kokuhoIncome', 'koukiIncome', 'jihiIncome', 'bushanIncome', 'extraIncome1Amount', 'extraIncome2Amount'];
+            const incomeItems = ['shahoIncome', 'kokuhoIncome', 'koukiIncome', 'jihiIncome', 'hokenNashiIncome', 'bushanIncome', 'extraIncome1Amount', 'extraIncome2Amount'];
             let incomeTotal = previousDifferenceAmount;
             incomeItems.forEach(id => {
                 incomeTotal += parseInt(document.getElementById(id).value) || 0;
@@ -1458,6 +1472,10 @@
                         jihi: {
                             count: parseInt(document.getElementById('jihiCount').value) || 0,
                             amount: parseInt(document.getElementById('jihiIncome').value) || 0
+                        },
+                        hokenNashi: {
+                            count: parseInt(document.getElementById('hokenNashiCount').value) || 0,
+                            amount: parseInt(document.getElementById('hokenNashiIncome').value) || 0
                         },
                         bushan: {
                             note: document.getElementById('bushanNote').value || '',
