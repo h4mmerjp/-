@@ -42,27 +42,42 @@ export default async function handler(req, res) {
         console.log('File buffer size:', fileBuffer.length);
         console.log('Original file name:', file_name);
 
-        // FormDataの作成（Node.js環境用）
-        const FormData = require('form-data');
-        const formData = new FormData();
-
         // 正しいファイル名の確保
         const correctedFileName = file_name.toLowerCase().endsWith('.pdf') ? file_name : `${file_name}.pdf`;
         console.log('Corrected file name:', correctedFileName);
 
-        // ファイルをFormDataに追加
-        formData.append('file', fileBuffer, {
-            filename: correctedFileName,
-            contentType: 'application/pdf'
-        });
+        // Vercel環境用のFormData作成
+        const FormData = global.FormData || require('form-data');
+        const formData = new FormData();
+
+        // Blobオブジェクトを作成（ブラウザ環境のFormData用）
+        if (typeof Blob !== 'undefined') {
+            // ブラウザ環境またはEdge Runtime
+            const blob = new Blob([fileBuffer], { type: 'application/pdf' });
+            formData.append('file', blob, correctedFileName);
+        } else {
+            // Node.js環境の場合の代替方法
+            formData.append('file', fileBuffer, {
+                filename: correctedFileName,
+                contentType: 'application/pdf'
+            });
+        }
+        
         formData.append('user', 'dental-clinic-user');
+
+        // アップロードリクエストのヘッダー設定
+        const uploadHeaders = {
+            'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
+        };
+
+        // form-dataのgetHeaders()が利用可能な場合のみ使用
+        if (formData.getHeaders && typeof formData.getHeaders === 'function') {
+            Object.assign(uploadHeaders, formData.getHeaders());
+        }
 
         const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
-                ...formData.getHeaders()
-            },
+            headers: uploadHeaders,
             body: formData
         });
 
@@ -151,7 +166,14 @@ export default async function handler(req, res) {
             if (workflowResponse.ok) {
                 console.log(`=== SUCCESS WITH FORMAT ${i + 1}! ===`);
                 
-                const parsedResponse = JSON.parse(workflowText);
+                let parsedResponse;
+                try {
+                    parsedResponse = JSON.parse(workflowText);
+                } catch (e) {
+                    console.error('Failed to parse workflow response:', e);
+                    throw new Error('ワークフローのレスポンスが無効なJSONです');
+                }
+                
                 let outputs = parsedResponse.data?.outputs || parsedResponse.outputs || {};
                 
                 if (outputs.__is_success === undefined) {
