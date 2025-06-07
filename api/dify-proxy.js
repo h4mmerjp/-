@@ -59,49 +59,94 @@ export default async function handler(req, res) {
         
         const workflowUrl = 'https://api.dify.ai/v1/workflows/run';
         
-        const workflowRequest = {
-            inputs: {
-                file: fileId
+        // 複数のファイル入力形式を試行
+        const fileInputPatterns = [
+            // パターン1: ファイルオブジェクト形式
+            {
+                inputs: {
+                    file: {
+                        type: "file",
+                        transfer_method: "local_file", 
+                        upload_file_id: fileId
+                    }
+                },
+                response_mode: "blocking",
+                user: "dental-clinic-user"
             },
-            response_mode: "blocking",
-            user: "dental-clinic-user"
-        };
-
-        console.log('Workflow request:', JSON.stringify(workflowRequest, null, 2));
-
-        const workflowResponse = await fetch(workflowUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
-                'Content-Type': 'application/json'
+            // パターン2: upload_file_id形式
+            {
+                inputs: {
+                    file: {
+                        upload_file_id: fileId
+                    }
+                },
+                response_mode: "blocking", 
+                user: "dental-clinic-user"
             },
-            body: JSON.stringify(workflowRequest)
-        });
-
-        const workflowText = await workflowResponse.text();
-        console.log('Workflow response status:', workflowResponse.status);
-        console.log('Workflow response headers:', Object.fromEntries(workflowResponse.headers.entries()));
-        console.log('Raw workflow response:', workflowText);
-
-        if (!workflowResponse.ok) {
-            console.error('Workflow execution failed:', workflowResponse.status, workflowText);
-            
-            let errorDetails = {};
-            try {
-                errorDetails = JSON.parse(workflowText);
-            } catch (e) {
-                errorDetails = { raw_error: workflowText };
+            // パターン3: 直接ID（従来方式）
+            {
+                inputs: {
+                    file: fileId
+                },
+                response_mode: "blocking",
+                user: "dental-clinic-user"
             }
-            
-            throw new Error(`ワークフロー実行に失敗しました (${workflowResponse.status}): ${errorDetails.error || errorDetails.message || workflowText}`);
+        ];
+
+        let workflowResult = null;
+        let lastError = null;
+
+        // 各パターンを順番に試行
+        for (let i = 0; i < fileInputPatterns.length; i++) {
+            const workflowRequest = fileInputPatterns[i];
+            console.log(`Trying pattern ${i + 1}:`, JSON.stringify(workflowRequest, null, 2));
+
+            const workflowResponse = await fetch(workflowUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(workflowRequest)
+            });
+
+            const workflowText = await workflowResponse.text();
+            console.log(`Pattern ${i + 1} - Response status:`, workflowResponse.status);
+            console.log(`Pattern ${i + 1} - Raw response:`, workflowText);
+
+            if (workflowResponse.ok) {
+                try {
+                    workflowResult = JSON.parse(workflowText);
+                    console.log(`Pattern ${i + 1} - SUCCESS!`);
+                    console.log('Parsed result:', JSON.stringify(workflowResult, null, 2));
+                    break; // 成功したらループを抜ける
+                } catch (e) {
+                    console.error(`Pattern ${i + 1} - JSON parse error:`, e);
+                    lastError = `JSONパースエラー: ${e.message}`;
+                    continue;
+                }
+            } else {
+                let errorDetails = {};
+                try {
+                    errorDetails = JSON.parse(workflowText);
+                } catch (e) {
+                    errorDetails = { raw_error: workflowText };
+                }
+                
+                lastError = `Pattern ${i + 1} failed (${workflowResponse.status}): ${errorDetails.error || errorDetails.message || workflowText}`;
+                console.error(lastError);
+                
+                // 最後のパターンでなければ次を試行
+                if (i < fileInputPatterns.length - 1) {
+                    console.log(`Trying next pattern...`);
+                    continue;
+                }
+            }
         }
 
-        let workflowResult;
-        try {
-            workflowResult = JSON.parse(workflowText);
-        } catch (e) {
-            console.error('Could not parse workflow response as JSON:', workflowText);
-            throw new Error('ワークフローからの応答をJSONとして解析できませんでした');
+        // すべてのパターンが失敗した場合
+        if (!workflowResult) {
+            throw new Error(`すべての入力パターンが失敗しました。最後のエラー: ${lastError}`);
         }
 
         console.log('Workflow execution successful!');
