@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     try {
         const { pdf_data, file_name } = req.body;
 
-        console.log('=== PDF TEXT EXTRACTION ===');
+        console.log('=== SIMPLIFIED EXTRACTION ===');
         console.log('File name:', file_name);
         console.log('PDF data length:', pdf_data?.length || 0);
 
@@ -22,13 +22,11 @@ export default async function handler(req, res) {
             throw new Error('PDFデータまたはファイル名が不足しています');
         }
 
-        const fileBuffer = Buffer.from(pdf_data, 'base64');
-        console.log('File buffer size:', fileBuffer.length);
-
-        // Step 1: ファイルをアップロードしてDifyでテキスト抽出
-        console.log('Step 1: Uploading file for text extraction...');
+        // Step 1: ファイルをアップロード
+        console.log('Step 1: Uploading file...');
         
         const uploadUrl = 'https://api.dify.ai/v1/files/upload';
+        const fileBuffer = Buffer.from(pdf_data, 'base64');
         
         const formData = new FormData();
         const blob = new Blob([fileBuffer], { type: 'application/pdf' });
@@ -56,140 +54,105 @@ export default async function handler(req, res) {
         const fileId = uploadResult.id;
         console.log('File uploaded successfully. ID:', fileId);
 
-        // Step 2: Chat APIを使用してPDF内容を抽出
-        console.log('Step 2: Extracting PDF content using Chat API...');
+        // Step 2: PDFから簡易的にテキスト抽出を試行
+        console.log('Step 2: Simple text extraction...');
         
-        const chatUrl = 'https://api.dify.ai/v1/chat-messages';
+        let extractedText = '';
+        try {
+            // Base64からテキスト抽出を試行
+            const pdfText = fileBuffer.toString('utf8');
+            console.log('PDF text length:', pdfText.length);
+            console.log('PDF text preview:', pdfText.substring(0, 200));
+            
+            // 意味のある行を抽出
+            const lines = pdfText.split(/[\r\n]+/);
+            const meaningfulLines = lines.filter(line => {
+                const cleanLine = line.trim();
+                return cleanLine.length > 3 && (
+                    cleanLine.includes('社') || cleanLine.includes('国') || 
+                    cleanLine.includes('後期') || cleanLine.includes('自費') ||
+                    cleanLine.includes('保険') || cleanLine.includes('円') ||
+                    cleanLine.includes('件') || cleanLine.includes('計') ||
+                    /\d/.test(cleanLine) // 数字を含む行
+                );
+            });
+            
+            extractedText = meaningfulLines.join('\n');
+            console.log('Meaningful lines count:', meaningfulLines.length);
+            console.log('Extracted text preview:', extractedText.substring(0, 300));
+            
+        } catch (e) {
+            console.error('Text extraction failed:', e);
+            extractedText = '';
+        }
+
+        // Step 3: パターンマッチングでデータ抽出
+        console.log('Step 3: Pattern matching extraction...');
         
-        const chatRequest = {
-            inputs: {},
-            query: "このPDFファイルは歯科医院の日計表です。以下の情報をすべて正確に抽出してJSON形式で返してください：\n\n1. 社保（社会保険）の件数と金額\n2. 国保（国民健康保険）の件数と金額\n3. 後期（後期高齢者医療）の件数と金額\n4. 自費の件数と金額\n5. 保険なしの件数と金額\n6. 前回差額\n7. 物販合計\n\n回答例：{\"shaho_count\":\"42\",\"shaho_amount\":\"130500\",\"kokuho_count\":\"4\",\"kokuho_amount\":\"6050\",\"kouki_count\":\"5\",\"kouki_amount\":\"3390\",\"jihi_count\":\"1\",\"jihi_amount\":\"10060\",\"hoken_nashi_count\":\"0\",\"hoken_nashi_amount\":\"0\",\"previous_difference\":\"-700\",\"bushan_amount\":\"1560\"}\n\n金額はカンマを除いて数字のみで返してください。",
+        const extractedData = performPatternMatching(extractedText);
+        console.log('Pattern matching result:', extractedData);
+
+        // Step 4: 元のワークフローも試行
+        console.log('Step 4: Trying original workflow...');
+        
+        const workflowUrl = 'https://api.dify.ai/v1/workflows/run';
+        const workflowRequest = {
+            inputs: { file: extractedText || fileId },
             response_mode: "blocking",
-            conversation_id: "",
-            user: "dental-clinic-user",
-            files: [
-                {
-                    type: "file",
-                    transfer_method: "local_file",
-                    upload_file_id: fileId
-                }
-            ]
+            user: "dental-clinic-user"
         };
 
-        console.log('Chat API request:', JSON.stringify(chatRequest, null, 2));
-
-        const chatResponse = await fetch(chatUrl, {
+        const workflowResponse = await fetch(workflowUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(chatRequest)
+            body: JSON.stringify(workflowRequest)
         });
 
-        const chatText = await chatResponse.text();
-        console.log('Chat API response status:', chatResponse.status);
-        console.log('Raw chat response:', chatText);
+        const workflowText = await workflowResponse.text();
+        console.log('Workflow response status:', workflowResponse.status);
+        console.log('Workflow response:', workflowText);
 
-        let extractedData = {};
-        let chatSuccess = false;
-        
-        if (chatResponse.ok) {
+        let workflowData = {};
+        if (workflowResponse.ok) {
             try {
-                const chatResult = JSON.parse(chatText);
-                const answer = chatResult.answer || "";
-                console.log('Chat answer:', answer);
-                
-                chatSuccess = true;
-                
-                // JSONレスポンスの抽出（複数パターンに対応）
-                const extractionPatterns = [
-                    // Pattern 1: ```json ... ```
-                    /```json\s*([\s\S]*?)\s*```/,
-                    // Pattern 2: ``` ... ```
-                    /```\s*([\s\S]*?)\s*```/,
-                    // Pattern 3: { ... }
-                    /(\{[\s\S]*?\})/,
-                    // Pattern 4: "key": "value" pattern
-                    /"shaho_count"[\s\S]*?\}/
-                ];
-                
-                for (const pattern of extractionPatterns) {
-                    const match = answer.match(pattern);
-                    if (match) {
-                        try {
-                            const jsonStr = match[1] || match[0];
-                            console.log('Trying to parse JSON:', jsonStr);
-                            extractedData = JSON.parse(jsonStr);
-                            console.log('Successfully extracted JSON:', extractedData);
-                            break;
-                        } catch (e) {
-                            console.log('JSON parse attempt failed:', e.message);
-                            continue;
-                        }
-                    }
-                }
-                
-                // JSONが抽出できない場合、手動で情報抽出
-                if (Object.keys(extractedData).length === 0) {
-                    console.log('JSON extraction failed, trying manual extraction...');
-                    console.log('Full answer text:', answer);
-                    
-                    extractedData = manualExtraction(answer);
-                    console.log('Manual extraction result:', extractedData);
-                }
-                
+                const workflowResult = JSON.parse(workflowText);
+                workflowData = workflowResult.data?.outputs || workflowResult.outputs || {};
+                console.log('Workflow data:', workflowData);
             } catch (e) {
-                console.error('Chat API response parsing failed:', e);
-                chatSuccess = false;
+                console.error('Workflow response parsing failed:', e);
             }
-        } else {
-            console.error('Chat API failed:', chatResponse.status, chatText);
-            chatSuccess = false;
         }
-        // Chat APIが失敗した場合の処理
-        if (!chatSuccess || Object.keys(extractedData).length === 0) {
-            console.log('Chat API failed or no data extracted, trying alternative methods...');
-            
-            // フォールバック：サンプルデータ（テスト用）
-            extractedData = {
-                shaho_count: "1",
-                shaho_amount: "1000",
-                kokuho_count: "1", 
-                kokuho_amount: "500",
-                kouki_count: "1",
-                kouki_amount: "300",
-                jihi_count: "0",
-                jihi_amount: "0",
-                hoken_nashi_count: "0",
-                hoken_nashi_amount: "0",
-                previous_difference: "0",
-                bushan_amount: "0",
-                _note: "Chat API失敗のため、サンプルデータを表示しています。",
-                _chat_failed: true
-            };
-        }
+
+        // Step 5: 結果をマージ
+        const finalData = {
+            ...extractedData,
+            ...workflowData
+        };
 
         // 標準形式に変換
         const outputs = {
             __is_success: 1,
             _file_id: fileId,
-            _extraction_method: chatSuccess ? "chat_api_success" : "chat_api_fallback",
-            shaho_count: String(extractedData.shaho_count || "0").replace(/[^\d.-]/g, ''),
-            shaho_amount: String(extractedData.shaho_amount || "0").replace(/[^\d.-]/g, ''),
-            kokuho_count: String(extractedData.kokuho_count || "0").replace(/[^\d.-]/g, ''), 
-            kokuho_amount: String(extractedData.kokuho_amount || "0").replace(/[^\d.-]/g, ''),
-            kouki_count: String(extractedData.kouki_count || "0").replace(/[^\d.-]/g, ''),
-            kouki_amount: String(extractedData.kouki_amount || "0").replace(/[^\d.-]/g, ''),
-            jihi_count: String(extractedData.jihi_count || "0").replace(/[^\d.-]/g, ''),
-            jihi_amount: String(extractedData.jihi_amount || "0").replace(/[^\d.-]/g, ''),
-            hoken_nashi_count: String(extractedData.hoken_nashi_count || "0").replace(/[^\d.-]/g, ''),
-            hoken_nashi_amount: String(extractedData.hoken_nashi_amount || "0").replace(/[^\d.-]/g, ''),
-            previous_difference: String(extractedData.previous_difference || "0").replace(/[^\d.-]/g, ''),
-            bushan_amount: String(extractedData.bushan_amount || "0").replace(/[^\d.-]/g, ''),
-            bushan_note: extractedData.bushan_note || "物販",
-            _raw_extracted_data: extractedData,
-            _chat_response_available: chatSuccess
+            _extraction_method: "simplified_pattern_matching",
+            shaho_count: String(finalData.shaho_count || extractedData.shaho_count || "0"),
+            shaho_amount: String(finalData.shaho_amount || extractedData.shaho_amount || "0"),
+            kokuho_count: String(finalData.kokuho_count || extractedData.kokuho_count || "0"), 
+            kokuho_amount: String(finalData.kokuho_amount || extractedData.kokuho_amount || "0"),
+            kouki_count: String(finalData.kouki_count || extractedData.kouki_count || "0"),
+            kouki_amount: String(finalData.kouki_amount || extractedData.kouki_amount || "0"),
+            jihi_count: String(finalData.jihi_count || extractedData.jihi_count || "0"),
+            jihi_amount: String(finalData.jihi_amount || extractedData.jihi_amount || "0"),
+            hoken_nashi_count: String(finalData.hoken_nashi_count || extractedData.hoken_nashi_count || "0"),
+            hoken_nashi_amount: String(finalData.hoken_nashi_amount || extractedData.hoken_nashi_amount || "0"),
+            previous_difference: String(finalData.previous_difference || extractedData.previous_difference || "0"),
+            bushan_amount: String(finalData.bushan_amount || extractedData.bushan_amount || "0"),
+            bushan_note: finalData.bushan_note || extractedData.bushan_note || "物販",
+            _extracted_text_length: extractedText.length,
+            _pattern_matching_data: extractedData,
+            _workflow_data: workflowData
         };
 
         console.log('Final outputs:', JSON.stringify(outputs, null, 2));
@@ -208,6 +171,7 @@ export default async function handler(req, res) {
                     "__reason": error.message,
                     "_debug_info": {
                         "error_type": error.constructor.name,
+                        "error_stack": error.stack,
                         "timestamp": new Date().toISOString()
                     }
                 }
@@ -216,61 +180,128 @@ export default async function handler(req, res) {
     }
 }
 
-// ヘルパー関数：テキストから数値を抽出
-function extractNumberFromText(text, keywords, suffixes) {
-    for (const keyword of keywords) {
-        for (const suffix of suffixes) {
-            const pattern = new RegExp(`${keyword}[^\\d]*?(\\d+(?:,\\d{3})*)\\s*${suffix}`, 'i');
-            const match = text.match(pattern);
-            if (match) {
-                return match[1].replace(/,/g, '');
-            }
-        }
-    }
-    return null;
-}
-
-// 手動抽出関数
-function manualExtraction(text) {
-    console.log('Starting manual extraction from text...');
+// パターンマッチング関数
+function performPatternMatching(text) {
+    console.log('Performing pattern matching on text...');
     
     const result = {};
     
-    // より柔軟な抽出パターン
+    // 数値抽出のパターン
     const patterns = [
-        // 社保パターン
-        { key: 'shaho_count', regex: /社保?[：:\s]*(\d+)[件人]/i },
-        { key: 'shaho_amount', regex: /社保?[：:\s]*\d+[件人][^0-9]*(\d+(?:,\d{3})*)[円]/i },
+        // 社保
+        { 
+            key: 'shaho_count', 
+            regexes: [
+                /社保[^\d]*(\d+)[件人数]/i,
+                /社会保険[^\d]*(\d+)[件人数]/i,
+                /社本[^\d]*(\d+)[件人数]/i
+            ]
+        },
+        { 
+            key: 'shaho_amount', 
+            regexes: [
+                /社保[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i,
+                /社会保険[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i,
+                /社本[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i
+            ]
+        },
         
-        // 国保パターン
-        { key: 'kokuho_count', regex: /国保?[：:\s]*(\d+)[件人]/i },
-        { key: 'kokuho_amount', regex: /国保?[：:\s]*\d+[件人][^0-9]*(\d+(?:,\d{3})*)[円]/i },
+        // 国保
+        { 
+            key: 'kokuho_count', 
+            regexes: [
+                /国保[^\d]*(\d+)[件人数]/i,
+                /国民[^\d]*(\d+)[件人数]/i,
+                /国家[^\d]*(\d+)[件人数]/i
+            ]
+        },
+        { 
+            key: 'kokuho_amount', 
+            regexes: [
+                /国保[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i,
+                /国民[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i,
+                /国家[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i
+            ]
+        },
         
-        // 後期パターン
-        { key: 'kouki_count', regex: /後期[：:\s]*(\d+)[件人]/i },
-        { key: 'kouki_amount', regex: /後期[：:\s]*\d+[件人][^0-9]*(\d+(?:,\d{3})*)[円]/i },
+        // 後期
+        { 
+            key: 'kouki_count', 
+            regexes: [
+                /後期[^\d]*(\d+)[件人数]/i,
+                /高齢[^\d]*(\d+)[件人数]/i
+            ]
+        },
+        { 
+            key: 'kouki_amount', 
+            regexes: [
+                /後期[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i,
+                /高齢[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i
+            ]
+        },
         
-        // 自費パターン
-        { key: 'jihi_count', regex: /自費[：:\s]*(\d+)[件人]/i },
-        { key: 'jihi_amount', regex: /自費[：:\s]*\d+[件人][^0-9]*(\d+(?:,\d{3})*)[円]/i },
+        // 自費
+        { 
+            key: 'jihi_count', 
+            regexes: [
+                /自費[^\d]*(\d+)[件人数]/i
+            ]
+        },
+        { 
+            key: 'jihi_amount', 
+            regexes: [
+                /自費[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i
+            ]
+        },
         
-        // 保険なしパターン
-        { key: 'hoken_nashi_count', regex: /保険なし[：:\s]*(\d+)[件人]/i },
-        { key: 'hoken_nashi_amount', regex: /保険なし[：:\s]*\d+[件人][^0-9]*(\d+(?:,\d{3})*)[円]/i },
+        // 保険なし
+        { 
+            key: 'hoken_nashi_count', 
+            regexes: [
+                /保険なし[^\d]*(\d+)[件人数]/i,
+                /保険無[^\d]*(\d+)[件人数]/i
+            ]
+        },
+        { 
+            key: 'hoken_nashi_amount', 
+            regexes: [
+                /保険なし[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i,
+                /保険無[^\d]*\d+[件人数][^\d]*(\d+(?:,\d{3})*)/i
+            ]
+        },
         
         // その他
-        { key: 'previous_difference', regex: /前回差額[：:\s]*(-?\d+(?:,\d{3})*)/i },
-        { key: 'bushan_amount', regex: /物販[合計]*[：:\s]*(\d+(?:,\d{3})*)/i }
+        { 
+            key: 'previous_difference', 
+            regexes: [
+                /前回差額[^\d\-]*(-?\d+(?:,\d{3})*)/i,
+                /差額[^\d\-]*(-?\d+(?:,\d{3})*)/i
+            ]
+        },
+        { 
+            key: 'bushan_amount', 
+            regexes: [
+                /物販[合計]*[^\d]*(\d+(?:,\d{3})*)/i,
+                /販売[合計]*[^\d]*(\d+(?:,\d{3})*)/i
+            ]
+        }
     ];
     
     for (const pattern of patterns) {
-        const match = text.match(pattern.regex);
-        if (match) {
-            result[pattern.key] = match[1].replace(/,/g, '');
-            console.log(`Extracted ${pattern.key}: ${result[pattern.key]}`);
-        } else {
+        let found = false;
+        for (const regex of pattern.regexes) {
+            const match = text.match(regex);
+            if (match) {
+                result[pattern.key] = match[1].replace(/,/g, '');
+                console.log(`Found ${pattern.key}: ${result[pattern.key]}`);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
             result[pattern.key] = "0";
         }
     }
     
     return result;
+}
