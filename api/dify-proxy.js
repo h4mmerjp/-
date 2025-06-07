@@ -60,45 +60,97 @@ export default async function handler(req, res) {
         
         const workflowUrl = 'https://api.dify.ai/v1/workflows/run';
         
-        // Difyワークフローの入力形式を正しく設定
-        const workflowRequest = {
-            inputs: {
-                file: fileId  // 変数名は画像で確認した通り 'file'
+        // Difyワークフローの入力形式を複数パターンで試行
+        const workflowPatterns = [
+            // パターン1: ファイルオブジェクト形式
+            {
+                inputs: {
+                    file: {
+                        type: "file",
+                        transfer_method: "local_file",
+                        upload_file_id: fileId
+                    }
+                },
+                response_mode: "blocking",
+                user: "dental-clinic-user"
             },
-            response_mode: "blocking",
-            user: "dental-clinic-user"
-        };
-
-        console.log('Workflow request:', JSON.stringify(workflowRequest, null, 2));
-
-        const workflowResponse = await fetch(workflowUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
-                'Content-Type': 'application/json'
+            // パターン2: 直接ID指定
+            {
+                inputs: {
+                    file: fileId
+                },
+                response_mode: "blocking",
+                user: "dental-clinic-user"
             },
-            body: JSON.stringify(workflowRequest)
-        });
-
-        console.log('Workflow response status:', workflowResponse.status);
-
-        if (!workflowResponse.ok) {
-            const workflowError = await workflowResponse.text();
-            console.error('Workflow execution failed:', workflowError);
-            
-            // エラーの詳細をログに出力
-            try {
-                const errorJson = JSON.parse(workflowError);
-                console.error('Workflow error details:', errorJson);
-            } catch (e) {
-                console.error('Raw workflow error:', workflowError);
+            // パターン3: アップロードファイルID形式
+            {
+                inputs: {
+                    file: {
+                        upload_file_id: fileId
+                    }
+                },
+                response_mode: "blocking",
+                user: "dental-clinic-user"
             }
-            
-            throw new Error(`ワークフロー実行に失敗しました: ${workflowResponse.status} - ${workflowError}`);
+        ];
+
+        // 複数パターンでワークフローを試行
+        let workflowResult = null;
+        let lastError = null;
+
+        for (let i = 0; i < workflowPatterns.length; i++) {
+            const workflowRequest = workflowPatterns[i];
+            console.log(`Pattern ${i + 1} - Workflow request:`, JSON.stringify(workflowRequest, null, 2));
+
+            const workflowResponse = await fetch(workflowUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(workflowRequest)
+            });
+
+            console.log(`Pattern ${i + 1} - Response status:`, workflowResponse.status);
+
+            const responseText = await workflowResponse.text();
+            console.log(`Pattern ${i + 1} - Raw response:`, responseText);
+
+            if (workflowResponse.ok) {
+                // 成功した場合
+                try {
+                    workflowResult = JSON.parse(responseText);
+                    console.log(`Pattern ${i + 1} - SUCCESS:`, JSON.stringify(workflowResult, null, 2));
+                    break; // 成功したらループを抜ける
+                } catch (e) {
+                    console.error(`Pattern ${i + 1} - JSON parse error:`, e);
+                    lastError = `JSONパースエラー: ${e.message}`;
+                    continue;
+                }
+            } else {
+                // エラーの詳細を記録
+                let errorDetails = {};
+                try {
+                    errorDetails = JSON.parse(responseText);
+                } catch (e) {
+                    errorDetails = { raw_error: responseText };
+                }
+                
+                lastError = `Pattern ${i + 1} failed (${workflowResponse.status}): ${errorDetails.message || errorDetails.error || responseText}`;
+                console.error(lastError);
+                
+                // 最後のパターンでなければ、次を試行
+                if (i < workflowPatterns.length - 1) {
+                    console.log(`Pattern ${i + 1} failed, trying next pattern...`);
+                    continue;
+                }
+            }
         }
 
-        const workflowResult = await workflowResponse.json();
-        console.log('Workflow execution successful:', JSON.stringify(workflowResult, null, 2));
+        // すべてのパターンが失敗した場合
+        if (!workflowResult) {
+            throw new Error(`すべての入力パターンが失敗しました。最後のエラー: ${lastError}`);
+        }
 
         // レスポンスデータの正規化
         let outputs = workflowResult.data?.outputs || workflowResult.outputs || {};
