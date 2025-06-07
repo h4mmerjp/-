@@ -14,28 +14,19 @@ export default async function handler(req, res) {
   try {
     console.log('PDF received successfully');
     
-    // 正確なテストデータ
-    const mockResponse = {
-      data: {
-        outputs: {
-          "__is_success": 1,
-          "__reason": null,
-          "shaho_count": "42",
-          "shaho_amount": "46,384",
-          "kokuho_count": "4",
-          "kokuho_amount": "2,403",
-          "kouki_count": "5",
-          "kouki_amount": "3,516",
-          "jihi_count": "1",
-          "jihi_amount": "3,850",
-          "bushan_note": "物販",
-          "bushan_amount": "1,560",
-          "previous_difference": "-700",
-          "hoken_nashi_count": "1",
-          "hoken_nashi_amount": "10,060"
-        }
-      }
-    };
+   // 実際のDify API呼び出し版
+const response = await fetch(process.env.DIFY_API_URL, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    inputs: { query: `PDFデータを解析: ${pdf_data}` },
+    response_mode: "blocking",
+    user: "dental-clinic-user"
+  })
+});
     
     // 1秒待機してリアルな感じを演出
     await new Promise(resolve => setTimeout(resolve, 1000));
