@@ -1,4 +1,12 @@
-<!DOCTYPE html>
+// ファイルをBase64に変換
+        function convertToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(',')[1]); // data:application/pdf;base64, を除去
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -833,12 +841,6 @@
                             <td><input type="number" class="input-field print-input-m" id="jihiIncome" oninput="updateCalculations()"></td>
                         </tr>
                         <tr>
-                            <td>保険なし</td>
-                            <td>窓口収入合計</td>
-                            <td><input type="number" class="input-field print-input-s" id="hokenNashiCount" oninput="updateCalculations()">名</td>
-                            <td><input type="number" class="input-field print-input-m" id="hokenNashiIncome" oninput="updateCalculations()"></td>
-                        </tr>
-                        <tr>
                             <td>物販収入</td>
                             <td>窓口収入合計</td>
                             <td><input type="text" class="input-field input-field-center print-input-center" id="bushanNote"></td>
@@ -1016,6 +1018,7 @@
                 // 抽出されたデータをフォームに反映
                 if (extractedData) {
                     populateFormWithData(extractedData);
+                    showUploadStatus('データの抽出と入力が完了しました！', 'success');
                 } else {
                     showUploadStatus('データの抽出に失敗しました', 'error');
                 }
@@ -1092,142 +1095,99 @@
                 } else if (data.outputs) {
                     actualData = data.outputs;
                 } else if (data.__is_success !== undefined) {
+                    // 成功チェック
+                    if (data.__is_success !== 1) {
+                        throw new Error(data.__reason || 'データ抽出に失敗しました');
+                    }
                     actualData = data;
                 }
 
                 console.log('処理対象データ:', actualData); // デバッグ用
 
-                // エラーチェック
-                if (actualData.__is_success === 0) {
-                    // エラーメッセージを表示
-                    showUploadStatus(`処理エラー: ${actualData.error || actualData.__reason || 'データ抽出に失敗しました'}`, 'error');
-                    return;
+                // 社保
+                if (actualData.shaho_count !== undefined) {
+                    document.getElementById('shahoCount').value = parseNumber(actualData.shaho_count);
+                    console.log('社保人数設定:', parseNumber(actualData.shaho_count));
+                }
+                if (actualData.shaho_amount !== undefined) {
+                    document.getElementById('shahoIncome').value = parseNumber(actualData.shaho_amount);
+                    console.log('社保金額設定:', parseNumber(actualData.shaho_amount));
                 }
 
-                // 成功時の処理
-                if (actualData.__is_success === 1) {
-                    console.log('データ処理成功 - データを入力中...');
-                    
-                    // 社保
-                    if (actualData.shaho_count !== undefined) {
-                        document.getElementById('shahoCount').value = parseNumber(actualData.shaho_count);
-                        console.log('社保人数設定:', parseNumber(actualData.shaho_count));
-                    }
-                    if (actualData.shaho_amount !== undefined) {
-                        document.getElementById('shahoIncome').value = parseNumber(actualData.shaho_amount);
-                        console.log('社保金額設定:', parseNumber(actualData.shaho_amount));
-                    }
-
-                    // 国保
-                    if (actualData.kokuho_count !== undefined) {
-                        document.getElementById('kokuhoCount').value = parseNumber(actualData.kokuho_count);
-                    }
-                    if (actualData.kokuho_amount !== undefined) {
-                        document.getElementById('kokuhoIncome').value = parseNumber(actualData.kokuho_amount);
-                    }
-
-                    // 後期高齢者
-                    if (actualData.kouki_count !== undefined) {
-                        document.getElementById('koukiCount').value = parseNumber(actualData.kouki_count);
-                    }
-                    if (actualData.kouki_amount !== undefined) {
-                        document.getElementById('koukiIncome').value = parseNumber(actualData.kouki_amount);
-                    }
-
-                    // 自費（純粋な自費診療）
-                    if (actualData.jihi_count !== undefined) {
-                        document.getElementById('jihiCount').value = parseNumber(actualData.jihi_count);
-                    }
-                    if (actualData.jihi_amount !== undefined) {
-                        document.getElementById('jihiIncome').value = parseNumber(actualData.jihi_amount);
-                    }
-
-                    // 保険なし（保険適用外）
-                    if (actualData.hoken_nashi_count !== undefined) {
-                        document.getElementById('hokenNashiCount').value = parseNumber(actualData.hoken_nashi_count);
-                    }
-                    if (actualData.hoken_nashi_amount !== undefined) {
-                        document.getElementById('hokenNashiIncome').value = parseNumber(actualData.hoken_nashi_amount);
-                    }
-
-                    // 物販収入
-                    if (actualData.bushan_note !== undefined) {
-                        document.getElementById('bushanNote').value = actualData.bushan_note;
-                    }
-                    if (actualData.bushan_amount !== undefined) {
-                        document.getElementById('bushanIncome').value = parseNumber(actualData.bushan_amount);
-                    }
-
-                    // 前回差額（符号を含む数値として処理）
-                    if (actualData.previous_difference !== undefined) {
-                        const previousDiffValue = parseNumber(actualData.previous_difference);
-                        document.getElementById('previousDifference').value = Math.abs(previousDiffValue);
-                        
-                        // 符号を自動設定
-                        differenceSign = previousDiffValue >= 0 ? '+' : '-';
-                        const signBtn = document.getElementById('signBtn');
-                        signBtn.textContent = differenceSign;
-                        signBtn.classList.remove('positive', 'negative');
-                        signBtn.classList.add(differenceSign === '+' ? 'positive' : 'negative');
-                        
-                        // PDF読み込み時は手動ボタンを隠し、自動設定を表示
-                        document.getElementById('differenceDisplay').textContent = 'PDF自動設定';
-                        document.getElementById('differenceControls').classList.add('hidden');
-                        
-                        updatePrintSign();
-                        console.log('前回差額設定:', previousDiffValue, '符号:', differenceSign);
-                    }
-
-                    // 前日繰越（必要に応じて）
-                    if (actualData.previous_balance !== undefined) {
-                        document.getElementById('previousBalance').value = parseNumber(actualData.previous_balance);
-                    }
-
-                    // その他の追加項目（必要に応じて）
-                    if (actualData.extra1_subject !== undefined) {
-                        document.getElementById('extraIncome1Subject').value = actualData.extra1_subject;
-                    }
-                    if (actualData.extra1_destination !== undefined) {
-                        document.getElementById('extraIncome1Destination').value = actualData.extra1_destination;
-                    }
-                    if (actualData.extra1_note !== undefined) {
-                        document.getElementById('extraIncome1Note').value = actualData.extra1_note;
-                    }
-                    if (actualData.extra1_amount !== undefined) {
-                        document.getElementById('extraIncome1Amount').value = parseNumber(actualData.extra1_amount);
-                    }
-
-                    // 計算を更新
-                    updateCalculations();
-                    console.log('データ入力完了');
-                    
-                    // 成功メッセージの表示
-                    if (actualData.message) {
-                        showUploadStatus(`データ処理完了: ${actualData.message}`, 'success');
-                    } else {
-                        showUploadStatus('データの抽出と入力が完了しました！', 'success');
-                    }
-                } else {
-                    // 成功フラグがない場合
-                    console.log('成功フラグが不明ですが、利用可能なデータがあれば処理します');
-                    
-                    // データがある場合は処理を続行
-                    if (actualData.shaho_count !== undefined || actualData.shaho_amount !== undefined) {
-                        // 部分的なデータでも入力
-                        if (actualData.shaho_count !== undefined) {
-                            document.getElementById('shahoCount').value = parseNumber(actualData.shaho_count);
-                        }
-                        if (actualData.shaho_amount !== undefined) {
-                            document.getElementById('shahoIncome').value = parseNumber(actualData.shaho_amount);
-                        }
-                        updateCalculations();
-                        showUploadStatus('部分的なデータを入力しました', 'success');
-                    } else {
-                        // データがない場合はサンプルデータを使用
-                        console.log('具体的なデータがないため、基本テスト版のサンプルデータとして扱います');
-                        showUploadStatus('基本接続テストが完了しました（サンプルデータ表示）', 'success');
-                    }
+                // 国保
+                if (actualData.kokuho_count !== undefined) {
+                    document.getElementById('kokuhoCount').value = parseNumber(actualData.kokuho_count);
                 }
+                if (actualData.kokuho_amount !== undefined) {
+                    document.getElementById('kokuhoIncome').value = parseNumber(actualData.kokuho_amount);
+                }
+
+                // 後期高齢者
+                if (actualData.kouki_count !== undefined) {
+                    document.getElementById('koukiCount').value = parseNumber(actualData.kouki_count);
+                }
+                if (actualData.kouki_amount !== undefined) {
+                    document.getElementById('koukiIncome').value = parseNumber(actualData.kouki_amount);
+                }
+
+                // 自費
+                if (actualData.jihi_count !== undefined) {
+                    document.getElementById('jihiCount').value = parseNumber(actualData.jihi_count);
+                }
+                if (actualData.jihi_amount !== undefined) {
+                    document.getElementById('jihiIncome').value = parseNumber(actualData.jihi_amount);
+                }
+
+                // 物販収入
+                if (actualData.bushan_note !== undefined) {
+                    document.getElementById('bushanNote').value = actualData.bushan_note;
+                }
+                if (actualData.bushan_amount !== undefined) {
+                    document.getElementById('bushanIncome').value = parseNumber(actualData.bushan_amount);
+                }
+
+                // 前回差額（符号を含む数値として処理）
+                if (actualData.previous_difference !== undefined) {
+                    const previousDiffValue = parseNumber(actualData.previous_difference);
+                    document.getElementById('previousDifference').value = Math.abs(previousDiffValue);
+                    
+                    // 符号を自動設定
+                    differenceSign = previousDiffValue >= 0 ? '+' : '-';
+                    const signBtn = document.getElementById('signBtn');
+                    signBtn.textContent = differenceSign;
+                    signBtn.classList.remove('positive', 'negative');
+                    signBtn.classList.add(differenceSign === '+' ? 'positive' : 'negative');
+                    
+                    // PDF読み込み時は手動ボタンを隠し、自動設定を表示
+                    document.getElementById('differenceDisplay').textContent = 'PDF自動設定';
+                    document.getElementById('differenceControls').classList.add('hidden');
+                    
+                    updatePrintSign();
+                    console.log('前回差額設定:', previousDiffValue, '符号:', differenceSign);
+                }
+
+                // 前日繰越（必要に応じて）
+                if (actualData.previous_balance !== undefined) {
+                    document.getElementById('previousBalance').value = parseNumber(actualData.previous_balance);
+                }
+
+                // その他の追加項目（必要に応じて）
+                if (actualData.extra1_subject !== undefined) {
+                    document.getElementById('extraIncome1Subject').value = actualData.extra1_subject;
+                }
+                if (actualData.extra1_destination !== undefined) {
+                    document.getElementById('extraIncome1Destination').value = actualData.extra1_destination;
+                }
+                if (actualData.extra1_note !== undefined) {
+                    document.getElementById('extraIncome1Note').value = actualData.extra1_note;
+                }
+                if (actualData.extra1_amount !== undefined) {
+                    document.getElementById('extraIncome1Amount').value = parseNumber(actualData.extra1_amount);
+                }
+
+                // 計算を更新
+                updateCalculations();
+                console.log('データ入力完了');
 
             } catch (error) {
                 console.error('データ入力エラー:', error);
@@ -1368,7 +1328,7 @@
             const previousDifferenceAmount = differenceSign === '+' ? previousDifferenceValue : -previousDifferenceValue;
 
             // 収入計算（前回差額を含む）
-            const incomeItems = ['shahoIncome', 'kokuhoIncome', 'koukiIncome', 'jihiIncome', 'hokenNashiIncome', 'bushanIncome', 'extraIncome1Amount', 'extraIncome2Amount'];
+            const incomeItems = ['shahoIncome', 'kokuhoIncome', 'koukiIncome', 'jihiIncome', 'bushanIncome', 'extraIncome1Amount', 'extraIncome2Amount'];
             let incomeTotal = previousDifferenceAmount;
             incomeItems.forEach(id => {
                 incomeTotal += parseInt(document.getElementById(id).value) || 0;
@@ -1498,10 +1458,6 @@
                         jihi: {
                             count: parseInt(document.getElementById('jihiCount').value) || 0,
                             amount: parseInt(document.getElementById('jihiIncome').value) || 0
-                        },
-                        hokenNashi: {
-                            count: parseInt(document.getElementById('hokenNashiCount').value) || 0,
-                            amount: parseInt(document.getElementById('hokenNashiIncome').value) || 0
                         },
                         bushan: {
                             note: document.getElementById('bushanNote').value || '',
