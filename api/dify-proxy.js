@@ -360,58 +360,86 @@ function performAdvancedPatternMatching(text) {
     const lines = text.split(/[\r\n]+/);
     const numbers = [];
     
-    // 各行から数値を抽出
+    // 各行から数値を抽出（日付を除外）
     lines.forEach((line, index) => {
-        const nums = line.match(/\d{1,3}(?:,\d{3})+|\d{3,}/g);
+        // 日付パターンを除外
+        const cleanLine = line.replace(/20\d{2}[-\/]\d{2}[-\/]\d{2}/, '')
+                             .replace(/\d{8}/, '') // YYYYMMDD形式
+                             .replace(/\d{14}/, ''); // タイムスタンプ形式
+        
+        const nums = cleanLine.match(/\d{1,3}(?:,\d{3})+|\d{2,6}/g);
         if (nums) {
             nums.forEach(num => {
-                numbers.push({
-                    line: index,
-                    value: num,
-                    context: line.trim()
-                });
+                const value = parseInt(num.replace(/,/g, ''));
+                // 妥当な金額範囲のみ（100円〜1,000,000円）
+                if (value >= 100 && value <= 1000000) {
+                    numbers.push({
+                        line: index,
+                        value: num,
+                        numericValue: value,
+                        context: line.trim()
+                    });
+                }
             });
         }
     });
     
-    console.log('Found numbers with context:', numbers.slice(0, 20));
+    console.log('Found valid numbers with context:', numbers);
     
-    // 簡単なルールベース抽出
-    // 通常、日計表では大きな金額（10万円以上）が社保に対応することが多い
-    const largeAmounts = numbers.filter(n => parseInt(n.value.replace(/,/g, '')) > 50000);
-    const mediumAmounts = numbers.filter(n => {
-        const val = parseInt(n.value.replace(/,/g, ''));
-        return val > 1000 && val <= 50000;
-    });
-    const smallAmounts = numbers.filter(n => {
-        const val = parseInt(n.value.replace(/,/g, ''));
-        return val > 0 && val <= 1000;
-    });
+    // 金額による分類（歯科医院の一般的な範囲）
+    const largeAmounts = numbers.filter(n => n.numericValue > 50000); // 社保
+    const mediumAmounts = numbers.filter(n => n.numericValue > 3000 && n.numericValue <= 50000); // 国保・後期
+    const smallAmounts = numbers.filter(n => n.numericValue > 100 && n.numericValue <= 3000); // 自費・その他
     
-    console.log('Large amounts:', largeAmounts);
-    console.log('Medium amounts:', mediumAmounts);
-    console.log('Small amounts:', smallAmounts);
+    console.log('Large amounts (likely 社保):', largeAmounts);
+    console.log('Medium amounts (likely 国保/後期):', mediumAmounts);
+    console.log('Small amounts (likely 自費/その他):', smallAmounts);
     
-    // 推定値を設定（実際のデータパターンに基づく）
+    // 推定値を設定
     if (largeAmounts.length > 0) {
         result.shaho_amount = largeAmounts[0].value.replace(/,/g, '');
-        result.shaho_count = "1"; // 推定
+        result.shaho_count = Math.min(largeAmounts.length, 50).toString(); // 最大50件
     }
     
     if (mediumAmounts.length > 0) {
         result.kokuho_amount = mediumAmounts[0].value.replace(/,/g, '');
-        result.kokuho_count = "1"; // 推定
+        result.kokuho_count = Math.min(mediumAmounts.length, 20).toString(); // 最大20件
     }
     
+    if (mediumAmounts.length > 1) {
+        result.kouki_amount = mediumAmounts[1].value.replace(/,/g, '');
+        result.kouki_count = Math.min(mediumAmounts.length - 1, 10).toString();
+    }
+    
+    if (smallAmounts.length > 0) {
+        result.jihi_amount = smallAmounts[0].value.replace(/,/g, '');
+        result.jihi_count = Math.min(smallAmounts.length, 5).toString();
+    }
+    
+    // 特定パターンの検索
+    const patterns = [
+        { key: 'previous_difference', regex: /差額.*?(-?\d{1,6})/, maxValue: 100000 },
+        { key: 'bushan_amount', regex: /物販.*?(\d{1,6})/, maxValue: 10000 }
+    ];
+    
+    patterns.forEach(pattern => {
+        const match = text.match(pattern.regex);
+        if (match) {
+            const value = parseInt(match[1].replace(/,/g, ''));
+            if (value <= pattern.maxValue) {
+                result[pattern.key] = match[1].replace(/,/g, '');
+            }
+        }
+    });
+    
     // デフォルト値
-    Object.keys({
-        shaho_count: "0", shaho_amount: "0",
-        kokuho_count: "0", kokuho_amount: "0", 
-        kouki_count: "0", kouki_amount: "0",
-        jihi_count: "0", jihi_amount: "0",
-        hoken_nashi_count: "0", hoken_nashi_amount: "0",
-        previous_difference: "0", bushan_amount: "0"
-    }).forEach(key => {
+    const defaultKeys = [
+        'shaho_count', 'shaho_amount', 'kokuho_count', 'kokuho_amount', 
+        'kouki_count', 'kouki_amount', 'jihi_count', 'jihi_amount',
+        'hoken_nashi_count', 'hoken_nashi_amount', 'previous_difference', 'bushan_amount'
+    ];
+    
+    defaultKeys.forEach(key => {
         if (!result[key]) {
             result[key] = "0";
         }
@@ -420,7 +448,7 @@ function performAdvancedPatternMatching(text) {
     return result;
 }
 
-// 抽出結果をマージ
+// 抽出結果をマージ（フィルタリング改善）
 function mergeExtractionResults(results) {
     const merged = {};
     
@@ -431,18 +459,46 @@ function mergeExtractionResults(results) {
     ];
     
     keys.forEach(key => {
-        // 0以外の値を優先的に選択
+        // 値の妥当性チェック
         for (const result of results) {
             if (result[key] && result[key] !== "0") {
-                merged[key] = result[key];
-                break;
+                const value = parseInt(result[key].replace(/,/g, ''));
+                
+                // 金額の妥当性チェック
+                if (key.includes('amount')) {
+                    // 異常に大きい値（日付混入など）を除外
+                    if (value > 10000000) { // 1000万円以上は異常値
+                        continue;
+                    }
+                    // 妥当な範囲の金額のみ採用
+                    if (value >= 100 && value <= 1000000) {
+                        merged[key] = result[key];
+                        break;
+                    }
+                }
+                // 件数の妥当性チェック
+                else if (key.includes('count')) {
+                    if (value >= 0 && value <= 100) { // 0-100件の範囲
+                        merged[key] = result[key];
+                        break;
+                    }
+                }
+                // その他（差額など）
+                else {
+                    if (Math.abs(value) <= 1000000) {
+                        merged[key] = result[key];
+                        break;
+                    }
+                }
             }
         }
+        
+        // デフォルト値
         if (!merged[key]) {
             merged[key] = "0";
         }
     });
     
-    console.log('Merged extraction result:', merged);
+    console.log('Merged and filtered extraction result:', merged);
     return merged;
 }
