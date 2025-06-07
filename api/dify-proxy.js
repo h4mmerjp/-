@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     try {
         const { pdf_data, file_name } = req.body;
 
-        console.log('=== FILE VALIDATION DEBUG ===');
+        console.log('=== PDF TEXT EXTRACTION ===');
         console.log('File name:', file_name);
         console.log('PDF data length:', pdf_data?.length || 0);
 
@@ -22,215 +22,195 @@ export default async function handler(req, res) {
             throw new Error('PDFデータまたはファイル名が不足しています');
         }
 
-        // ファイル検証
         const fileBuffer = Buffer.from(pdf_data, 'base64');
         console.log('File buffer size:', fileBuffer.length);
-        
-        // PDFファイルの検証（PDFファイルは %PDF- で始まる）
-        const fileHeader = fileBuffer.slice(0, 8).toString('ascii');
-        console.log('File header (first 8 bytes):', fileHeader);
-        console.log('File header hex:', Array.from(fileBuffer.slice(0, 8)).map(b => b.toString(16).padStart(2, '0')).join(' '));
-        
-        const isPDF = fileHeader.startsWith('%PDF-');
-        console.log('Is valid PDF:', isPDF);
-        
-        if (!isPDF) {
-            console.error('WARNING: File does not appear to be a valid PDF!');
-            // PDFでない場合でも続行して、Difyの反応を確認
-        }
 
-        // Step 1: 複数のアップロード方法を試行
-        console.log('Step 1: Trying multiple upload methods...');
+        // Step 1: ファイルをアップロードしてDifyでテキスト抽出
+        console.log('Step 1: Uploading file for text extraction...');
         
         const uploadUrl = 'https://api.dify.ai/v1/files/upload';
-        let uploadResult = null;
-        let fileId = null;
-
-        // Method 1: 標準的な方法
-        console.log('=== UPLOAD METHOD 1: Standard ===');
-        try {
-            const formData1 = new FormData();
-            const blob1 = new Blob([fileBuffer], { type: 'application/pdf' });
-            const correctedFileName = file_name.toLowerCase().endsWith('.pdf') ? file_name : `${file_name}.pdf`;
-            
-            formData1.append('file', blob1, correctedFileName);
-            formData1.append('user', 'dental-clinic-user');
-
-            const uploadResponse1 = await fetch(uploadUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
-                },
-                body: formData1
-            });
-
-            const uploadText1 = await uploadResponse1.text();
-            console.log('Method 1 - Upload status:', uploadResponse1.status);
-            console.log('Method 1 - Upload response:', uploadText1);
-
-            if (uploadResponse1.ok) {
-                uploadResult = JSON.parse(uploadText1);
-                fileId = uploadResult.id;
-                console.log('Method 1 - SUCCESS! File ID:', fileId);
-            } else {
-                console.log('Method 1 failed, trying method 2...');
-            }
-        } catch (e) {
-            console.error('Method 1 error:', e);
-        }
-
-        // Method 2: テキストファイルとして試行（デバッグ用）
-        if (!fileId) {
-            console.log('=== UPLOAD METHOD 2: As text file ===');
-            try {
-                const formData2 = new FormData();
-                const blob2 = new Blob([fileBuffer], { type: 'text/plain' });
-                
-                formData2.append('file', blob2, file_name.replace(/\.pdf$/i, '.txt'));
-                formData2.append('user', 'dental-clinic-user');
-
-                const uploadResponse2 = await fetch(uploadUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
-                    },
-                    body: formData2
-                });
-
-                const uploadText2 = await uploadResponse2.text();
-                console.log('Method 2 - Upload status:', uploadResponse2.status);
-                console.log('Method 2 - Upload response:', uploadText2);
-
-                if (uploadResponse2.ok) {
-                    uploadResult = JSON.parse(uploadText2);
-                    fileId = uploadResult.id;
-                    console.log('Method 2 - SUCCESS! File ID:', fileId);
-                }
-            } catch (e) {
-                console.error('Method 2 error:', e);
-            }
-        }
-
-        // Method 3: サンプルテキストをアップロード（最後の手段）
-        if (!fileId) {
-            console.log('=== UPLOAD METHOD 3: Sample text ===');
-            try {
-                // Base64データから実際のテキストを抽出してみる
-                let textContent = '';
-                try {
-                    textContent = fileBuffer.toString('utf8');
-                } catch (e) {
-                    textContent = 'サンプル日計表データ\n社保: 42件 130,500円\n国保: 4件 6,050円\n後期: 5件 3,390円';
-                }
-
-                const formData3 = new FormData();
-                const blob3 = new Blob([textContent], { type: 'text/plain' });
-                
-                formData3.append('file', blob3, 'sample_nikkeihyo.txt');
-                formData3.append('user', 'dental-clinic-user');
-
-                const uploadResponse3 = await fetch(uploadUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
-                    },
-                    body: formData3
-                });
-
-                const uploadText3 = await uploadResponse3.text();
-                console.log('Method 3 - Upload status:', uploadResponse3.status);
-                console.log('Method 3 - Upload response:', uploadText3);
-
-                if (uploadResponse3.ok) {
-                    uploadResult = JSON.parse(uploadText3);
-                    fileId = uploadResult.id;
-                    console.log('Method 3 - SUCCESS! File ID:', fileId);
-                }
-            } catch (e) {
-                console.error('Method 3 error:', e);
-            }
-        }
-
-        if (!fileId) {
-            throw new Error('すべてのアップロード方法が失敗しました');
-        }
-
-        // Step 2: ワークフロー実行
-        console.log('Step 2: Testing workflow with uploaded file...');
         
-        const workflowUrl = 'https://api.dify.ai/v1/workflows/run';
+        const formData = new FormData();
+        const blob = new Blob([fileBuffer], { type: 'application/pdf' });
+        const correctedFileName = file_name.toLowerCase().endsWith('.pdf') ? file_name : `${file_name}.pdf`;
         
-        const request = {
-            inputs: {
-                file: fileId
+        formData.append('file', blob, correctedFileName);
+        formData.append('user', 'dental-clinic-user');
+
+        const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
             },
+            body: formData
+        });
+
+        const uploadText = await uploadResponse.text();
+        console.log('Upload response status:', uploadResponse.status);
+
+        if (!uploadResponse.ok) {
+            throw new Error(`ファイルアップロードに失敗しました: ${uploadResponse.status} - ${uploadText}`);
+        }
+
+        const uploadResult = JSON.parse(uploadText);
+        const fileId = uploadResult.id;
+        console.log('File uploaded successfully. ID:', fileId);
+
+        // Step 2: Chat APIを使用してPDF内容を抽出
+        console.log('Step 2: Extracting PDF content using Chat API...');
+        
+        const chatUrl = 'https://api.dify.ai/v1/chat-messages';
+        
+        const chatRequest = {
+            inputs: {},
+            query: "このPDFファイルから以下の情報を抽出してJSON形式で返してください：社保の件数と金額、国保の件数と金額、後期の件数と金額、自費の件数と金額、保険なしの件数と金額、前回差額、物販合計。例：{\"shaho_count\":\"42\",\"shaho_amount\":\"130500\",\"kokuho_count\":\"4\",\"kokuho_amount\":\"6050\"}",
             response_mode: "blocking",
-            user: "dental-clinic-user"
+            conversation_id: "",
+            user: "dental-clinic-user",
+            files: [
+                {
+                    type: "file",
+                    transfer_method: "local_file",
+                    upload_file_id: fileId
+                }
+            ]
         };
 
-        console.log('Workflow request:', JSON.stringify(request, null, 2));
+        console.log('Chat API request:', JSON.stringify(chatRequest, null, 2));
 
-        const workflowResponse = await fetch(workflowUrl, {
+        const chatResponse = await fetch(chatUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(request)
+            body: JSON.stringify(chatRequest)
         });
 
-        const workflowText = await workflowResponse.text();
-        console.log('Workflow response status:', workflowResponse.status);
-        console.log('Workflow response:', workflowText);
+        const chatText = await chatResponse.text();
+        console.log('Chat API response status:', chatResponse.status);
+        console.log('Raw chat response:', chatText);
 
-        if (workflowResponse.ok) {
-            const workflowResult = JSON.parse(workflowText);
-            let outputs = workflowResult.data?.outputs || workflowResult.outputs || {};
+        let extractedData = {};
+        
+        if (chatResponse.ok) {
+            const chatResult = JSON.parse(chatText);
+            const answer = chatResult.answer || "";
+            console.log('Chat answer:', answer);
             
-            if (outputs.__is_success === undefined) {
-                outputs.__is_success = 1;
-            }
-            
-            outputs._file_id = fileId;
-            outputs._upload_method = uploadResult ? 'success' : 'fallback';
-            outputs._file_validation = {
-                is_pdf: isPDF,
-                file_header: fileHeader,
-                buffer_size: fileBuffer.length
-            };
-
-            return res.status(200).json({
-                data: { outputs: outputs }
-            });
-        } else {
-            // ワークフローが失敗した場合でも情報を返す
-            let errorDetails = {};
+            // JSONレスポンスの抽出
             try {
-                errorDetails = JSON.parse(workflowText);
-            } catch (e) {
-                errorDetails = { raw_error: workflowText };
-            }
-
-            return res.status(200).json({
-                data: {
-                    outputs: {
-                        "__is_success": 0,
-                        "__reason": `ワークフロー実行失敗: ${errorDetails.message || workflowText}`,
-                        "_debug_info": {
-                            "file_id": fileId,
-                            "upload_success": true,
-                            "file_validation": {
-                                "is_pdf": isPDF,
-                                "file_header": fileHeader,
-                                "buffer_size": fileBuffer.length
-                            },
-                            "upload_result": uploadResult,
-                            "workflow_error": errorDetails
+                // 様々なJSON形式に対応
+                const jsonMatches = [
+                    answer.match(/```json\s*([\s\S]*?)\s*```/),
+                    answer.match(/```\s*({[\s\S]*?})\s*```/),
+                    answer.match(/({[\s\S]*?})/),
+                    answer.match(/"shaho_count"[\s\S]*?"}/),
+                ];
+                
+                for (const match of jsonMatches) {
+                    if (match) {
+                        try {
+                            const jsonStr = match[1] || match[0];
+                            extractedData = JSON.parse(jsonStr);
+                            console.log('Successfully extracted JSON:', extractedData);
+                            break;
+                        } catch (e) {
+                            console.log('JSON parse attempt failed:', e.message);
+                            continue;
                         }
                     }
                 }
+                
+                // JSONが抽出できない場合、テキストから手動抽出
+                if (Object.keys(extractedData).length === 0) {
+                    console.log('Manual text extraction...');
+                    
+                    // 数値パターンを抽出
+                    const numberPattern = /(\d+(?:,\d{3})*)/g;
+                    const numbers = answer.match(numberPattern) || [];
+                    console.log('Extracted numbers:', numbers);
+                    
+                    // パターンマッチングで情報抽出
+                    extractedData = {
+                        shaho_count: extractNumberFromText(answer, ['社保', '社会保険'], ['件', '人']) || "0",
+                        shaho_amount: extractNumberFromText(answer, ['社保', '社会保険'], ['円', '金額']) || "0", 
+                        kokuho_count: extractNumberFromText(answer, ['国保', '国民保険'], ['件', '人']) || "0",
+                        kokuho_amount: extractNumberFromText(answer, ['国保', '国民保険'], ['円', '金額']) || "0",
+                        kouki_count: extractNumberFromText(answer, ['後期', '高齢'], ['件', '人']) || "0",
+                        kouki_amount: extractNumberFromText(answer, ['後期', '高齢'], ['円', '金額']) || "0",
+                        jihi_count: extractNumberFromText(answer, ['自費'], ['件', '人']) || "0",
+                        jihi_amount: extractNumberFromText(answer, ['自費'], ['円', '金額']) || "0",
+                        hoken_nashi_count: extractNumberFromText(answer, ['保険なし', '保険無'], ['件', '人']) || "0",
+                        hoken_nashi_amount: extractNumberFromText(answer, ['保険なし', '保険無'], ['円', '金額']) || "0",
+                        previous_difference: extractNumberFromText(answer, ['前回', '差額'], ['円']) || "0",
+                        bushan_amount: extractNumberFromText(answer, ['物販', '販売'], ['円', '合計']) || "0"
+                    };
+                }
+                
+            } catch (e) {
+                console.error('Text extraction failed:', e);
+                extractedData = {
+                    error: "PDF内容の抽出に失敗しました",
+                    raw_response: answer.substring(0, 500)
+                };
+            }
+            
+        } else {
+            // Chat APIが失敗した場合、元のワークフローAPIを試行
+            console.log('Chat API failed, trying original workflow...');
+            
+            const workflowUrl = 'https://api.dify.ai/v1/workflows/run';
+            const workflowRequest = {
+                inputs: { file: fileId },
+                response_mode: "blocking",
+                user: "dental-clinic-user"
+            };
+
+            const workflowResponse = await fetch(workflowUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(workflowRequest)
             });
+
+            const workflowText = await workflowResponse.text();
+            console.log('Workflow fallback response:', workflowResponse.status, workflowText);
+
+            if (workflowResponse.ok) {
+                const workflowResult = JSON.parse(workflowText);
+                extractedData = workflowResult.data?.outputs || workflowResult.outputs || {};
+            }
         }
+
+        // 標準形式に変換
+        const outputs = {
+            __is_success: 1,
+            _file_id: fileId,
+            _extraction_method: chatResponse.ok ? "chat_api" : "workflow_fallback",
+            shaho_count: String(extractedData.shaho_count || "0"),
+            shaho_amount: String(extractedData.shaho_amount || "0"),
+            kokuho_count: String(extractedData.kokuho_count || "0"), 
+            kokuho_amount: String(extractedData.kokuho_amount || "0"),
+            kouki_count: String(extractedData.kouki_count || "0"),
+            kouki_amount: String(extractedData.kouki_amount || "0"),
+            jihi_count: String(extractedData.jihi_count || "0"),
+            jihi_amount: String(extractedData.jihi_amount || "0"),
+            hoken_nashi_count: String(extractedData.hoken_nashi_count || "0"),
+            hoken_nashi_amount: String(extractedData.hoken_nashi_amount || "0"),
+            previous_difference: String(extractedData.previous_difference || "0"),
+            bushan_amount: String(extractedData.bushan_amount || "0"),
+            bushan_note: extractedData.bushan_note || "物販",
+            _raw_extracted_data: extractedData
+        };
+
+        console.log('Final outputs:', JSON.stringify(outputs, null, 2));
+
+        return res.status(200).json({
+            data: { outputs: outputs }
+        });
 
     } catch (error) {
         console.error('API Error:', error);
@@ -248,4 +228,18 @@ export default async function handler(req, res) {
             }
         });
     }
+}
+
+// ヘルパー関数：テキストから数値を抽出
+function extractNumberFromText(text, keywords, suffixes) {
+    for (const keyword of keywords) {
+        for (const suffix of suffixes) {
+            const pattern = new RegExp(`${keyword}[^\\d]*?(\\d+(?:,\\d{3})*)\\s*${suffix}`, 'i');
+            const match = text.match(pattern);
+            if (match) {
+                return match[1].replace(/,/g, '');
+            }
+        }
+    }
+    return null;
 }
