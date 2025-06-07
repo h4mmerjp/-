@@ -22,16 +22,33 @@ export default async function handler(req, res) {
             throw new Error('PDFデータまたはファイル名が不足しています');
         }
 
-        // Step 1: ファイルをDifyにアップロード
-        console.log('Step 1: Uploading file to Dify...');
+        // Step 1: ファイルをDifyにアップロード（修正版）
+        console.log('Step 1: Uploading file to Dify with correct MIME type...');
         
         const uploadUrl = 'https://api.dify.ai/v1/files/upload';
         const fileBuffer = Buffer.from(pdf_data, 'base64');
         
+        // ファイルの詳細情報をログ出力
+        console.log('File buffer size:', fileBuffer.length);
+        console.log('Original file name:', file_name);
+        console.log('File buffer first 10 bytes:', Array.from(fileBuffer.slice(0, 10)));
+        
         const formData = new FormData();
-        const blob = new Blob([fileBuffer], { type: 'application/pdf' });
-        formData.append('file', blob, file_name);
+        
+        // 正しいPDFファイルとして明示的に設定
+        const blob = new Blob([fileBuffer], { 
+            type: 'application/pdf'
+        });
+        
+        // ファイル名の拡張子を確認・修正
+        const correctedFileName = file_name.toLowerCase().endsWith('.pdf') ? file_name : `${file_name}.pdf`;
+        console.log('Corrected file name:', correctedFileName);
+        
+        formData.append('file', blob, correctedFileName);
         formData.append('user', 'dental-clinic-user');
+        
+        // ファイルタイプを明示的に指定
+        formData.append('type', 'application/pdf');
 
         const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
