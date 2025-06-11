@@ -1,13 +1,34 @@
 {
   "version": 2,
-  "buildCommand": "echo 'No build needed'",
-  "outputDirectory": ".",
+  "builds": [
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    }
+  ],
   "functions": {
     "api/dify-proxy.js": {
       "maxDuration": 60
     },
     "api/pdf-test.js": {
       "maxDuration": 60
+    },
+    "api/quick-test.js": {
+      "maxDuration": 30
     }
   }
 }
