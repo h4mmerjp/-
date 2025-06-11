@@ -1,3 +1,21 @@
 {
-  "version": 2
+  "version": 2,
+  "functions": {
+    "api/dify-proxy.js": {
+      "maxDuration": 60
+    },
+    "api/pdf-test.js": {
+      "maxDuration": 60
+    }
+  },
+  "build": {
+    "env": {
+      "DIFY_API_KEY": "@dify-api-key",
+      "DIFY_BASE_URL": "@dify-base-url"
+    }
+  },
+  "env": {
+    "DIFY_API_KEY": "@dify-api-key",
+    "DIFY_BASE_URL": "@dify-base-url"
+  }
 }
