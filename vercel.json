@@ -7,15 +7,5 @@
     "api/pdf-test.js": {
       "maxDuration": 60
     }
-  },
-  "build": {
-    "env": {
-      "DIFY_API_KEY": "@dify-api-key",
-      "DIFY_BASE_URL": "@dify-base-url"
-    }
-  },
-  "env": {
-    "DIFY_API_KEY": "@dify-api-key",
-    "DIFY_BASE_URL": "@dify-base-url"
   }
 }
