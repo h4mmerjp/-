@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "echo 'No build needed'",
+  "outputDirectory": ".",
   "functions": {
     "api/dify-proxy.js": {
       "maxDuration": 60
