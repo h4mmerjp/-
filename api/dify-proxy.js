@@ -167,11 +167,11 @@ async function uploadFileToDify(file) {
 // Difyワークフローを実行 - 修正版
 async function runDifyWorkflow(fileId) {
   try {
-    // 修正：正しいファイル入力形式
+    // 修正：PDF用の正しいファイル入力形式
     const requestBody = {
       inputs: {
         "orig_mail": {
-          "type": "document",
+          "type": "document",  // PDFは"document"タイプ
           "transfer_method": "local_file",
           "upload_file_id": fileId
         }
