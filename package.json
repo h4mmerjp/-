@@ -1,0 +1,19 @@
+{
+  "name": "dental-daily-report",
+  "version": "1.0.0",
+  "description": "歯科医院日計表アプリ with Dify PDF extraction",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static files ready'",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "formidable": "^3.5.1",
+    "form-data": "^4.0.0",
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
