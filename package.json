@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
-    "build": "echo 'Static site - no build needed'",
+    "build": "mkdir -p public && cp index.html public/ && echo 'Build completed'",
     "start": "vercel dev"
   },
   "dependencies": {
