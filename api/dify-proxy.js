@@ -1,4 +1,4 @@
-// Vercel API Route for Dify Proxy
+// Vercel API Route for Dify Proxy - 修正版
 import formidable from 'formidable';
 import fs from 'fs';
 import FormData from 'form-data';
@@ -164,16 +164,17 @@ async function uploadFileToDify(file) {
   }
 }
 
-// Difyワークフローを実行
+// Difyワークフローを実行 - 修正版
 async function runDifyWorkflow(fileId) {
   try {
+    // 修正：正しいファイル入力形式
     const requestBody = {
       inputs: {
-        "orig_mail": [{
+        "orig_mail": {
+          "type": "document",
           "transfer_method": "local_file",
-          "upload_file_id": fileId,
-          "type": "document"
-        }]
+          "upload_file_id": fileId
+        }
       },
       response_mode: "blocking",
       user: "dental-app-user"
