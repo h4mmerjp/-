@@ -1,4 +1,4 @@
-// Vercel API Route for Dify Proxy - エラーハンドリング強化版
+// Vercel API Route for Dify Proxy - 修正版
 import formidable from 'formidable';
 import fs from 'fs';
 import FormData from 'form-data';
@@ -33,7 +33,6 @@ export default async function handler(req, res) {
     console.log('Environment check:');
     console.log('- DIFY_API_KEY exists:', !!process.env.DIFY_API_KEY);
     console.log('- DIFY_BASE_URL:', process.env.DIFY_BASE_URL);
-    console.log('- DIFY_WORKFLOW_ID exists:', !!process.env.DIFY_WORKFLOW_ID);
     
     // ファイルパース
     const form = formidable({
@@ -74,21 +73,21 @@ export default async function handler(req, res) {
 
     console.log('File uploaded successfully, ID:', uploadResult.fileId);
 
-    // 2. ワークフロー実行（複数の入力パターンを試行）
-    console.log('=== STEP 2: RUN WORKFLOW WITH MULTIPLE PATTERNS ===');
-    const workflowResult = await runDifyWorkflowWithFallback(uploadResult.fileId);
+    // 2. ワークフロー実行（YMLファイルに合わせて修正）
+    console.log('=== STEP 2: RUN WORKFLOW WITH CORRECTED PARAMETERS ===');
+    const workflowResult = await runDifyWorkflowCorrected(uploadResult.fileId);
     
     if (!workflowResult.success) {
-      console.error('All workflow patterns failed:', workflowResult);
+      console.error('Workflow execution failed:', workflowResult);
       return res.status(500).json({
-        error: 'All workflow execution patterns failed',
+        error: 'Workflow execution failed',
         debug: workflowResult.debug,
         difyError: workflowResult.error,
-        allAttempts: workflowResult.allAttempts // 全ての試行結果
+        attempts: workflowResult.attempts
       });
     }
 
-    console.log('Workflow completed successfully with pattern:', workflowResult.successPattern);
+    console.log('Workflow completed successfully');
     console.log('Extracted data:', workflowResult.data);
 
     // 3. 結果を返す
@@ -98,7 +97,6 @@ export default async function handler(req, res) {
       debug: {
         fileId: uploadResult.fileId,
         workflowExecuted: true,
-        successPattern: workflowResult.successPattern,
         extractedParams: workflowResult.data,
         rawWorkflowResponse: workflowResult.rawResponse
       }
@@ -180,102 +178,42 @@ async function uploadFileToDify(file) {
   }
 }
 
-// 複数のワークフロー入力パターンでフォールバック実行
-async function runDifyWorkflowWithFallback(fileId) {
-  const patterns = [
-    {
-      name: 'PDF Document Object (基本)',
-      inputs: {
-        "orig_mail": {
-          "type": "document",
-          "transfer_method": "local_file",
-          "upload_file_id": fileId
-        }
-      }
-    },
-    {
-      name: 'Document with file metadata',
-      inputs: {
-        "orig_mail": {
-          "type": "document",
-          "transfer_method": "local_file",
-          "upload_file_id": fileId,
-          "mime_type": "application/pdf"
-        }
-      }
-    },
-    {
-      name: 'File parameter alternative',
-      inputs: {
-        "file": {
-          "type": "document",
-          "transfer_method": "local_file", 
-          "upload_file_id": fileId
-        }
-      }
-    },
-    {
-      name: 'Simple file ID only',
-      inputs: {
-        "orig_mail": fileId
-      }
-    },
-    {
-      name: 'Document parameter alternative',
-      inputs: {
-        "document": {
-          "type": "document",
-          "transfer_method": "local_file",
-          "upload_file_id": fileId
-        }
-      }
-    },
-    {
-      name: 'PDF file parameter',
-      inputs: {
-        "pdf_file": {
-          "type": "document", 
-          "transfer_method": "local_file",
-          "upload_file_id": fileId
-        }
+// YMLファイルの設定に合わせた修正版ワークフロー実行
+async function runDifyWorkflowCorrected(fileId) {
+  // YMLファイルから正しいパラメータ名は "file" であることが判明
+  const correctPattern = {
+    name: 'Correct YAML Pattern (file parameter)',
+    inputs: {
+      "file": {
+        "type": "document",
+        "transfer_method": "local_file",
+        "upload_file_id": fileId
       }
     }
-  ];
-
-  const allAttempts = [];
-  
-  for (const pattern of patterns) {
-    console.log(`Trying workflow pattern: ${pattern.name}`);
-    
-    const result = await runSingleDifyWorkflow(fileId, pattern);
-    allAttempts.push({
-      pattern: pattern.name,
-      success: result.success,
-      error: result.error,
-      debug: result.debug
-    });
-    
-    if (result.success) {
-      console.log(`✅ Success with pattern: ${pattern.name}`);
-      return {
-        success: true,
-        data: result.data,
-        successPattern: pattern.name,
-        rawResponse: result.rawResponse,
-        allAttempts: allAttempts
-      };
-    } else {
-      console.log(`❌ Failed with pattern: ${pattern.name} - ${result.error}`);
-    }
-  }
-  
-  // 全てのパターンが失敗した場合
-  return {
-    success: false,
-    error: 'All workflow patterns failed',
-    debug: 'Tried multiple input patterns but none succeeded',
-    allAttempts: allAttempts
   };
+
+  console.log('Using correct pattern based on YAML file...');
+  console.log('Pattern:', correctPattern.name);
+  
+  const result = await runSingleDifyWorkflow(fileId, correctPattern);
+  
+  if (result.success) {
+    console.log('✅ Success with corrected pattern');
+    return {
+      success: true,
+      data: result.data,
+      rawResponse: result.rawResponse,
+      attempts: [{ pattern: correctPattern.name, success: true }]
+    };
+  } else {
+    console.log('❌ Failed even with corrected pattern:', result.error);
+    return {
+      success: false,
+      error: result.error,
+      debug: result.debug,
+      attempts: [{ pattern: correctPattern.name, success: false, error: result.error }]
+    };
+  }
 }
 
 // 単一のワークフローパターンを実行
@@ -302,6 +240,7 @@ async function runSingleDifyWorkflow(fileId, pattern) {
 
     const responseText = await response.text();
     console.log(`Response status for ${pattern.name}:`, response.status);
+    console.log('Response text:', responseText.substring(0, 500));
 
     if (!response.ok) {
       return {
@@ -319,7 +258,7 @@ async function runSingleDifyWorkflow(fileId, pattern) {
       return {
         success: false,
         error: 'Invalid JSON response',
-        debug: `JSON parse failed: ${parseError.message}`
+        debug: `JSON parse failed: ${parseError.message}. Response: ${responseText.substring(0, 200)}`
       };
     }
     
@@ -339,10 +278,13 @@ async function runSingleDifyWorkflow(fileId, pattern) {
     const hasValidData = Object.values(extractedData).some(value => value && value !== '');
     
     if (!hasValidData) {
+      console.log('No valid data extracted. Full response structure:');
+      console.log(JSON.stringify(result, null, 2));
+      
       return {
         success: false,
         error: 'No valid data extracted',
-        debug: 'Workflow completed but no extractable data found in outputs'
+        debug: 'Workflow completed but no extractable data found in outputs. Check workflow configuration.'
       };
     }
 
@@ -363,7 +305,7 @@ async function runSingleDifyWorkflow(fileId, pattern) {
   }
 }
 
-// レスポンスからデータを抽出する関数（複数の場所を探索）
+// レスポンスからデータを抽出する関数（強化版）
 function extractDataFromResponse(result) {
   console.log('=== DATA EXTRACTION ===');
   console.log('Full result structure:', Object.keys(result));
@@ -384,51 +326,67 @@ function extractDataFromResponse(result) {
     hoken_nashi_amount: ''
   };
   
-  // 抽出パターン1: result.data.outputs
+  // パターン1: result.data.outputs内のノード別出力をチェック
   if (result.data && result.data.outputs && typeof result.data.outputs === 'object') {
     console.log('Pattern 1: Checking result.data.outputs');
     const outputs = result.data.outputs;
     
-    Object.keys(extractedData).forEach(key => {
-      if (outputs[key] !== undefined && outputs[key] !== null) {
-        extractedData[key] = String(outputs[key]);
-        console.log(`Found ${key}: ${outputs[key]}`);
+    // ノード名で探索（YMLではパラメータ抽出ノードがあるはず）
+    Object.keys(outputs).forEach(nodeKey => {
+      console.log(`Checking node: ${nodeKey}`);
+      const nodeOutput = outputs[nodeKey];
+      
+      if (nodeOutput && typeof nodeOutput === 'object') {
+        Object.keys(extractedData).forEach(key => {
+          if (nodeOutput[key] !== undefined && nodeOutput[key] !== null && !extractedData[key]) {
+            extractedData[key] = String(nodeOutput[key]);
+            console.log(`Found ${key}: ${nodeOutput[key]} in node ${nodeKey}`);
+          }
+        });
       }
     });
   }
   
-  // 抽出パターン2: result.outputs
-  if (result.outputs && typeof result.outputs === 'object') {
-    console.log('Pattern 2: Checking result.outputs');
-    const outputs = result.outputs;
-    
+  // パターン2: result.data直下をチェック
+  if (result.data && typeof result.data === 'object') {
+    console.log('Pattern 2: Checking result.data directly');
     Object.keys(extractedData).forEach(key => {
-      if (outputs[key] !== undefined && outputs[key] !== null && !extractedData[key]) {
-        extractedData[key] = String(outputs[key]);
-        console.log(`Found ${key}: ${outputs[key]}`);
+      if (result.data[key] !== undefined && result.data[key] !== null && !extractedData[key]) {
+        extractedData[key] = String(result.data[key]);
+        console.log(`Found ${key}: ${result.data[key]} in result.data`);
       }
     });
   }
   
-  // 抽出パターン3: result直下
+  // パターン3: result直下をチェック
   console.log('Pattern 3: Checking result directly');
   Object.keys(extractedData).forEach(key => {
     if (result[key] !== undefined && result[key] !== null && !extractedData[key]) {
       extractedData[key] = String(result[key]);
-      console.log(`Found ${key}: ${result[key]}`);
+      console.log(`Found ${key}: ${result[key]} in result`);
     }
   });
   
-  // 抽出パターン4: result.data直下
-  if (result.data && typeof result.data === 'object') {
-    console.log('Pattern 4: Checking result.data directly');
-    Object.keys(extractedData).forEach(key => {
-      if (result.data[key] !== undefined && result.data[key] !== null && !extractedData[key]) {
-        extractedData[key] = String(result.data[key]);
-        console.log(`Found ${key}: ${result.data[key]}`);
+  // パターン4: 深いネスト構造をチェック
+  console.log('Pattern 4: Deep nested search');
+  function searchDeep(obj, path = '') {
+    if (typeof obj !== 'object' || obj === null) return;
+    
+    Object.keys(obj).forEach(key => {
+      const fullPath = path ? `${path}.${key}` : key;
+      
+      if (extractedData.hasOwnProperty(key) && obj[key] !== undefined && obj[key] !== null && !extractedData[key]) {
+        extractedData[key] = String(obj[key]);
+        console.log(`Found ${key}: ${obj[key]} at path ${fullPath}`);
+      }
+      
+      if (typeof obj[key] === 'object' && obj[key] !== null) {
+        searchDeep(obj[key], fullPath);
       }
     });
   }
+  
+  searchDeep(result);
   
   console.log('Final extracted data:', extractedData);
   return extractedData;
