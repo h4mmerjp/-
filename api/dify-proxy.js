@@ -1,177 +1,10 @@
-// Vercel API Route for Dify Proxy - 修正版
-import formidable from 'formidable';
-import fs from 'fs';
-import FormData from 'form-data';
-import fetch from 'node-fetch';
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-export default async function handler(req, res) {
-  // CORS設定
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      error: 'Method not allowed',
-      debug: `Received method: ${req.method}, expected: POST`
-    });
-  }
-
-  try {
-    console.log('Starting file upload process...');
-    
-    // ファイルパース
-    const form = formidable({
-      maxFileSize: 15 * 1024 * 1024, // 15MB制限
-      keepExtensions: true,
-    });
-
-    const [fields, files] = await form.parse(req);
-    console.log('Files parsed:', Object.keys(files));
-    console.log('Fields parsed:', Object.keys(fields));
-
-    const uploadedFile = files.file?.[0];
-    if (!uploadedFile) {
-      return res.status(400).json({ 
-        error: 'No file uploaded',
-        debug: 'files object does not contain a file property'
-      });
-    }
-
-    console.log('File details:', {
-      originalFilename: uploadedFile.originalFilename,
-      size: uploadedFile.size,
-      mimetype: uploadedFile.mimetype
-    });
-
-    // 1. Difyにファイルアップロード
-    console.log('Uploading file to Dify...');
-    const uploadResult = await uploadFileToDify(uploadedFile);
-    
-    if (!uploadResult.success) {
-      return res.status(400).json({
-        error: 'File upload to Dify failed',
-        debug: uploadResult.debug,
-        difyError: uploadResult.error
-      });
-    }
-
-    console.log('File uploaded successfully, ID:', uploadResult.fileId);
-
-    // 2. ワークフロー実行
-    console.log('Running Dify workflow...');
-    const workflowResult = await runDifyWorkflow(uploadResult.fileId);
-    
-    if (!workflowResult.success) {
-      return res.status(500).json({
-        error: 'Workflow execution failed',
-        debug: workflowResult.debug,
-        difyError: workflowResult.error
-      });
-    }
-
-    console.log('Workflow completed successfully');
-
-    // 3. 結果を返す
-    res.status(200).json({
-      success: true,
-      data: workflowResult.data,
-      debug: {
-        fileId: uploadResult.fileId,
-        workflowExecuted: true,
-        extractedParams: workflowResult.data
-      }
-    });
-
-  } catch (error) {
-    console.error('Handler error:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      debug: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-  }
-}
-
-// Difyにファイルをアップロード
-async function uploadFileToDify(file) {
-  try {
-    const formData = new FormData();
-    const fileStream = fs.createReadStream(file.filepath);
-    
-    formData.append('file', fileStream, {
-      filename: file.originalFilename,
-      contentType: file.mimetype
-    });
-    formData.append('user', 'dental-app-user');
-
-    console.log('Sending file to Dify upload endpoint...');
-    
-    const response = await fetch(`${process.env.DIFY_BASE_URL}/files/upload`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
-        ...formData.getHeaders()
-      },
-      body: formData,
-    });
-
-    const responseText = await response.text();
-    console.log('Dify upload response status:', response.status);
-    console.log('Dify upload response body:', responseText);
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: `HTTP ${response.status}`,
-        debug: `Upload failed with status ${response.status}. Response: ${responseText}`
-      };
-    }
-
-    const result = JSON.parse(responseText);
-    
-    if (!result.id) {
-      return {
-        success: false,
-        error: 'No file ID returned',
-        debug: `Response missing ID field. Full response: ${responseText}`
-      };
-    }
-
-    return {
-      success: true,
-      fileId: result.id,
-      debug: `File uploaded successfully with ID: ${result.id}`
-    };
-
-  } catch (error) {
-    console.error('Upload error:', error);
-    return {
-      success: false,
-      error: error.message,
-      debug: `Upload exception: ${error.message}`
-    };
-  }
-}
-
-// Difyワークフローを実行 - 修正版
+// Difyワークフローを実行 - デバッグ強化版
 async function runDifyWorkflow(fileId) {
   try {
-    // 修正：PDF用の正しいファイル入力形式
     const requestBody = {
       inputs: {
         "orig_mail": {
-          "type": "document",  // PDFは"document"タイプ
+          "type": "document",
           "transfer_method": "local_file",
           "upload_file_id": fileId
         }
@@ -205,13 +38,23 @@ async function runDifyWorkflow(fileId) {
 
     const result = JSON.parse(responseText);
     
-    // ワークフロー結果からパラメータを抽出
+    // 🔍 詳細デバッグ: レスポンス構造を分析
+    console.log('=== WORKFLOW RESPONSE ANALYSIS ===');
+    console.log('Full result:', JSON.stringify(result, null, 2));
+    console.log('result.data:', result.data);
+    console.log('result.data.outputs:', result.data?.outputs);
+    console.log('Object.keys(result):', Object.keys(result));
+    if (result.data) {
+      console.log('Object.keys(result.data):', Object.keys(result.data));
+    }
+    
+    // ワークフロー結果からパラメータを抽出（複数のパターンを試行）
     let extractedData = {};
     
+    // パターン1: result.data.outputs から抽出（現在の方法）
     if (result.data && result.data.outputs) {
-      // Difyワークフローの出力から必要なパラメータを取得
+      console.log('Pattern 1: Using result.data.outputs');
       const outputs = result.data.outputs;
-      
       extractedData = {
         shaho_count: outputs.shaho_count || '',
         shaho_amount: outputs.shaho_amount || '',
@@ -228,11 +71,54 @@ async function runDifyWorkflow(fileId) {
         hoken_nashi_amount: outputs.hoken_nashi_amount || ''
       };
     }
+    
+    // パターン2: result から直接抽出
+    if (Object.keys(extractedData).every(key => !extractedData[key]) && result.shaho_count) {
+      console.log('Pattern 2: Using result directly');
+      extractedData = {
+        shaho_count: result.shaho_count || '',
+        shaho_amount: result.shaho_amount || '',
+        kokuho_count: result.kokuho_count || '',
+        kokuho_amount: result.kokuho_amount || '',
+        kouki_count: result.kouki_count || '',
+        kouki_amount: result.kouki_amount || '',
+        jihi_count: result.jihi_count || '',
+        jihi_amount: result.jihi_amount || '',
+        bushan_note: result.bushan_note || '',
+        bushan_amount: result.bushan_amount || '',
+        previous_difference: result.previous_difference || '',
+        hoken_nashi_count: result.hoken_nashi_count || '',
+        hoken_nashi_amount: result.hoken_nashi_amount || ''
+      };
+    }
+    
+    // パターン3: result.data から直接抽出
+    if (Object.keys(extractedData).every(key => !extractedData[key]) && result.data && result.data.shaho_count) {
+      console.log('Pattern 3: Using result.data directly');
+      extractedData = {
+        shaho_count: result.data.shaho_count || '',
+        shaho_amount: result.data.shaho_amount || '',
+        kokuho_count: result.data.kokuho_count || '',
+        kokuho_amount: result.data.kokuho_amount || '',
+        kouki_count: result.data.kouki_count || '',
+        kouki_amount: result.data.kouki_amount || '',
+        jihi_count: result.data.jihi_count || '',
+        jihi_amount: result.data.jihi_amount || '',
+        bushan_note: result.data.bushan_note || '',
+        bushan_amount: result.data.bushan_amount || '',
+        previous_difference: result.data.previous_difference || '',
+        hoken_nashi_count: result.data.hoken_nashi_count || '',
+        hoken_nashi_amount: result.data.hoken_nashi_amount || ''
+      };
+    }
+
+    console.log('Final extracted data:', JSON.stringify(extractedData, null, 2));
 
     return {
       success: true,
       data: extractedData,
-      debug: `Workflow completed. Status: ${result.data?.status}. Extracted ${Object.keys(extractedData).length} parameters.`
+      debug: `Workflow completed. Status: ${result.data?.status}. Extracted ${Object.keys(extractedData).length} parameters.`,
+      rawResponse: result // デバッグ用に生レスポンスも含める
     };
 
   } catch (error) {
