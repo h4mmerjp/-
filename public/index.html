@@ -635,7 +635,7 @@
 
         <!-- PDFアップロード機能 -->
         <div class="pdf-upload-section no-print">
-            <h3>📄 レシートPDFから自動入力</h3>
+            <h3>📄 日計表PDFから自動入力</h3>
             <div class="file-input-wrapper">
                 <input type="file" id="pdfFile" class="file-input" accept=".pdf" onchange="handleFileSelect()">
                 <label for="pdfFile" class="file-input-label">PDFファイルを選択</label>
@@ -1105,58 +1105,64 @@
             }
         }
 
-        // 抽出されたデータをフォームに入力
+        // 抽出されたデータをフォームに入力（修正版）
         function populateFormWithExtractedData(data) {
             logDebug('フォームへのデータ入力開始');
             
+            // 数値フィールド用のヘルパー関数：カンマを除去して数値のみにする
+            function cleanNumericValue(value) {
+                if (!value) return '';
+                return value.toString().replace(/,/g, '');
+            }
+            
             // 社保
             if (data.shaho_count) {
-                document.getElementById('shahoCount').value = data.shaho_count;
-                logDebug(`社保人数: ${data.shaho_count}`);
+                document.getElementById('shahoCount').value = cleanNumericValue(data.shaho_count);
+                logDebug(`社保人数: ${data.shaho_count} → ${cleanNumericValue(data.shaho_count)}`);
             }
             if (data.shaho_amount) {
-                document.getElementById('shahoIncome').value = data.shaho_amount;
-                logDebug(`社保金額: ${data.shaho_amount}`);
+                document.getElementById('shahoIncome').value = cleanNumericValue(data.shaho_amount);
+                logDebug(`社保金額: ${data.shaho_amount} → ${cleanNumericValue(data.shaho_amount)}`);
             }
             
             // 国保
             if (data.kokuho_count) {
-                document.getElementById('kokuhoCount').value = data.kokuho_count;
-                logDebug(`国保人数: ${data.kokuho_count}`);
+                document.getElementById('kokuhoCount').value = cleanNumericValue(data.kokuho_count);
+                logDebug(`国保人数: ${data.kokuho_count} → ${cleanNumericValue(data.kokuho_count)}`);
             }
             if (data.kokuho_amount) {
-                document.getElementById('kokuhoIncome').value = data.kokuho_amount;
-                logDebug(`国保金額: ${data.kokuho_amount}`);
+                document.getElementById('kokuhoIncome').value = cleanNumericValue(data.kokuho_amount);
+                logDebug(`国保金額: ${data.kokuho_amount} → ${cleanNumericValue(data.kokuho_amount)}`);
             }
             
             // 後期高齢者
             if (data.kouki_count) {
-                document.getElementById('koukiCount').value = data.kouki_count;
-                logDebug(`後期高齢者人数: ${data.kouki_count}`);
+                document.getElementById('koukiCount').value = cleanNumericValue(data.kouki_count);
+                logDebug(`後期高齢者人数: ${data.kouki_count} → ${cleanNumericValue(data.kouki_count)}`);
             }
             if (data.kouki_amount) {
-                document.getElementById('koukiIncome').value = data.kouki_amount;
-                logDebug(`後期高齢者金額: ${data.kouki_amount}`);
+                document.getElementById('koukiIncome').value = cleanNumericValue(data.kouki_amount);
+                logDebug(`後期高齢者金額: ${data.kouki_amount} → ${cleanNumericValue(data.kouki_amount)}`);
             }
             
             // 自費
             if (data.jihi_count) {
-                document.getElementById('jihiCount').value = data.jihi_count;
-                logDebug(`自費人数: ${data.jihi_count}`);
+                document.getElementById('jihiCount').value = cleanNumericValue(data.jihi_count);
+                logDebug(`自費人数: ${data.jihi_count} → ${cleanNumericValue(data.jihi_count)}`);
             }
             if (data.jihi_amount) {
-                document.getElementById('jihiIncome').value = data.jihi_amount;
-                logDebug(`自費金額: ${data.jihi_amount}`);
+                document.getElementById('jihiIncome').value = cleanNumericValue(data.jihi_amount);
+                logDebug(`自費金額: ${data.jihi_amount} → ${cleanNumericValue(data.jihi_amount)}`);
             }
             
             // 保険なし
             if (data.hoken_nashi_count) {
-                document.getElementById('hokenNashiCount').value = data.hoken_nashi_count;
-                logDebug(`保険なし人数: ${data.hoken_nashi_count}`);
+                document.getElementById('hokenNashiCount').value = cleanNumericValue(data.hoken_nashi_count);
+                logDebug(`保険なし人数: ${data.hoken_nashi_count} → ${cleanNumericValue(data.hoken_nashi_count)}`);
             }
             if (data.hoken_nashi_amount) {
-                document.getElementById('hokenNashiIncome').value = data.hoken_nashi_amount;
-                logDebug(`保険なし金額: ${data.hoken_nashi_amount}`);
+                document.getElementById('hokenNashiIncome').value = cleanNumericValue(data.hoken_nashi_amount);
+                logDebug(`保険なし金額: ${data.hoken_nashi_amount} → ${cleanNumericValue(data.hoken_nashi_amount)}`);
             }
             
             // 物販
@@ -1165,26 +1171,33 @@
                 logDebug(`物販備考: ${data.bushan_note}`);
             }
             if (data.bushan_amount) {
-                document.getElementById('bushanIncome').value = data.bushan_amount;
-                logDebug(`物販金額: ${data.bushan_amount}`);
+                document.getElementById('bushanIncome').value = cleanNumericValue(data.bushan_amount);
+                logDebug(`物販金額: ${data.bushan_amount} → ${cleanNumericValue(data.bushan_amount)}`);
             }
             
             // 前回差額（符号を含む）
             if (data.previous_difference) {
                 const diffStr = data.previous_difference.toString();
+                
+                // 符号を確認
                 if (diffStr.startsWith('-')) {
                     differenceSign = '-';
-                    document.getElementById('previousDifference').value = diffStr.substring(1);
-                    logDebug(`前回差額: ${diffStr} (負の値)`);
+                    // マイナス符号を除去してカンマも除去
+                    const cleanValue = cleanNumericValue(diffStr.substring(1));
+                    document.getElementById('previousDifference').value = cleanValue;
+                    logDebug(`前回差額: ${diffStr} → 符号: ${differenceSign}, 値: ${cleanValue}`);
                 } else if (diffStr.startsWith('+')) {
                     differenceSign = '+';
-                    document.getElementById('previousDifference').value = diffStr.substring(1);
-                    logDebug(`前回差額: ${diffStr} (正の値)`);
+                    // プラス符号を除去してカンマも除去
+                    const cleanValue = cleanNumericValue(diffStr.substring(1));
+                    document.getElementById('previousDifference').value = cleanValue;
+                    logDebug(`前回差額: ${diffStr} → 符号: ${differenceSign}, 値: ${cleanValue}`);
                 } else {
                     // 符号なしの場合は正として扱う
                     differenceSign = '+';
-                    document.getElementById('previousDifference').value = diffStr;
-                    logDebug(`前回差額: ${diffStr} (符号なし、正として処理)`);
+                    const cleanValue = cleanNumericValue(diffStr);
+                    document.getElementById('previousDifference').value = cleanValue;
+                    logDebug(`前回差額: ${diffStr} → 符号: ${differenceSign}, 値: ${cleanValue} (符号なし、正として処理)`);
                 }
                 
                 // 符号ボタンの表示を更新
@@ -1202,6 +1215,22 @@
             // 計算を更新
             updateCalculations();
             logDebug('フォームへのデータ入力完了');
+            
+            // 成功メッセージをより詳細に
+            const totalAmount = Number(cleanNumericValue(data.shaho_amount || '0')) + 
+                               Number(cleanNumericValue(data.kokuho_amount || '0')) + 
+                               Number(cleanNumericValue(data.kouki_amount || '0')) + 
+                               Number(cleanNumericValue(data.jihi_amount || '0')) + 
+                               Number(cleanNumericValue(data.hoken_nashi_amount || '0')) + 
+                               Number(cleanNumericValue(data.bushan_amount || '0'));
+            
+            const totalPatients = Number(cleanNumericValue(data.shaho_count || '0')) + 
+                                 Number(cleanNumericValue(data.kokuho_count || '0')) + 
+                                 Number(cleanNumericValue(data.kouki_count || '0')) + 
+                                 Number(cleanNumericValue(data.jihi_count || '0')) + 
+                                 Number(cleanNumericValue(data.hoken_nashi_count || '0'));
+            
+            showMessage(`PDFデータ抽出完了！患者${totalPatients}名、収入合計${totalAmount.toLocaleString()}円`);
         }
 
         // 今日の日付を設定
