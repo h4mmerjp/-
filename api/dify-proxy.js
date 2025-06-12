@@ -183,10 +183,14 @@ async function runDifyWorkflowDSL(fileId) {
   try {
     console.log('Preparing DSL-compatible workflow request...');
     
-    // DSLワークフローに対応した入力形式
+    // DSLワークフローに対応した入力形式（ファイルオブジェクトとして渡す）
     const requestBody = {
       inputs: {
-        "orig_mail": fileId // DSLで定義されたfile型変数名
+        "orig_mail": {
+          "type": "file",
+          "transfer_method": "local_file", 
+          "upload_file_id": fileId
+        }
       },
       response_mode: "blocking",
       user: "dental-app-user"
