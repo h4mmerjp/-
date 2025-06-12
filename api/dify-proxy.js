@@ -1,4 +1,4 @@
-// Vercel API Route for Dify Proxy - 完全デバッグ版
+// Vercel API Route for Dify Proxy - エラーハンドリング強化版
 import formidable from 'formidable';
 import fs from 'fs';
 import FormData from 'form-data';
@@ -33,6 +33,7 @@ export default async function handler(req, res) {
     console.log('Environment check:');
     console.log('- DIFY_API_KEY exists:', !!process.env.DIFY_API_KEY);
     console.log('- DIFY_BASE_URL:', process.env.DIFY_BASE_URL);
+    console.log('- DIFY_WORKFLOW_ID exists:', !!process.env.DIFY_WORKFLOW_ID);
     
     // ファイルパース
     const form = formidable({
@@ -73,21 +74,21 @@ export default async function handler(req, res) {
 
     console.log('File uploaded successfully, ID:', uploadResult.fileId);
 
-    // 2. ワークフロー実行
-    console.log('=== STEP 2: RUN WORKFLOW ===');
-    const workflowResult = await runDifyWorkflow(uploadResult.fileId);
+    // 2. ワークフロー実行（複数の入力パターンを試行）
+    console.log('=== STEP 2: RUN WORKFLOW WITH MULTIPLE PATTERNS ===');
+    const workflowResult = await runDifyWorkflowWithFallback(uploadResult.fileId);
     
     if (!workflowResult.success) {
-      console.error('Workflow failed:', workflowResult);
+      console.error('All workflow patterns failed:', workflowResult);
       return res.status(500).json({
-        error: 'Workflow execution failed',
+        error: 'All workflow execution patterns failed',
         debug: workflowResult.debug,
         difyError: workflowResult.error,
-        fullError: workflowResult // より詳細なエラー情報
+        allAttempts: workflowResult.allAttempts // 全ての試行結果
       });
     }
 
-    console.log('Workflow completed successfully');
+    console.log('Workflow completed successfully with pattern:', workflowResult.successPattern);
     console.log('Extracted data:', workflowResult.data);
 
     // 3. 結果を返す
@@ -97,8 +98,9 @@ export default async function handler(req, res) {
       debug: {
         fileId: uploadResult.fileId,
         workflowExecuted: true,
+        successPattern: workflowResult.successPattern,
         extractedParams: workflowResult.data,
-        rawWorkflowResponse: workflowResult.rawResponse // デバッグ用
+        rawWorkflowResponse: workflowResult.rawResponse
       }
     });
 
@@ -178,24 +180,116 @@ async function uploadFileToDify(file) {
   }
 }
 
-// Difyワークフローを実行 - エラーハンドリング強化版
-async function runDifyWorkflow(fileId) {
-  try {
-    console.log('Preparing workflow request...');
-    const requestBody = {
+// 複数のワークフロー入力パターンでフォールバック実行
+async function runDifyWorkflowWithFallback(fileId) {
+  const patterns = [
+    {
+      name: 'PDF Document Object (基本)',
       inputs: {
         "orig_mail": {
           "type": "document",
           "transfer_method": "local_file",
           "upload_file_id": fileId
         }
-      },
+      }
+    },
+    {
+      name: 'Document with file metadata',
+      inputs: {
+        "orig_mail": {
+          "type": "document",
+          "transfer_method": "local_file",
+          "upload_file_id": fileId,
+          "mime_type": "application/pdf"
+        }
+      }
+    },
+    {
+      name: 'File parameter alternative',
+      inputs: {
+        "file": {
+          "type": "document",
+          "transfer_method": "local_file", 
+          "upload_file_id": fileId
+        }
+      }
+    },
+    {
+      name: 'Simple file ID only',
+      inputs: {
+        "orig_mail": fileId
+      }
+    },
+    {
+      name: 'Document parameter alternative',
+      inputs: {
+        "document": {
+          "type": "document",
+          "transfer_method": "local_file",
+          "upload_file_id": fileId
+        }
+      }
+    },
+    {
+      name: 'PDF file parameter',
+      inputs: {
+        "pdf_file": {
+          "type": "document", 
+          "transfer_method": "local_file",
+          "upload_file_id": fileId
+        }
+      }
+    }
+  ];
+
+  const allAttempts = [];
+  
+  for (const pattern of patterns) {
+    console.log(`Trying workflow pattern: ${pattern.name}`);
+    
+    const result = await runSingleDifyWorkflow(fileId, pattern);
+    allAttempts.push({
+      pattern: pattern.name,
+      success: result.success,
+      error: result.error,
+      debug: result.debug
+    });
+    
+    if (result.success) {
+      console.log(`✅ Success with pattern: ${pattern.name}`);
+      return {
+        success: true,
+        data: result.data,
+        successPattern: pattern.name,
+        rawResponse: result.rawResponse,
+        allAttempts: allAttempts
+      };
+    } else {
+      console.log(`❌ Failed with pattern: ${pattern.name} - ${result.error}`);
+    }
+  }
+  
+  // 全てのパターンが失敗した場合
+  return {
+    success: false,
+    error: 'All workflow patterns failed',
+    debug: 'Tried multiple input patterns but none succeeded',
+    allAttempts: allAttempts
+  };
+}
+
+// 単一のワークフローパターンを実行
+async function runSingleDifyWorkflow(fileId, pattern) {
+  try {
+    const requestBody = {
+      inputs: pattern.inputs,
       response_mode: "blocking",
       user: "dental-app-user"
     };
 
     console.log('Workflow URL:', `${process.env.DIFY_BASE_URL}/workflows/run`);
-    console.log('Sending workflow request with body:', JSON.stringify(requestBody, null, 2));
+    console.log('Sending workflow request with pattern:', pattern.name);
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
     const response = await fetch(`${process.env.DIFY_BASE_URL}/workflows/run`, {
       method: 'POST',
@@ -207,130 +301,135 @@ async function runDifyWorkflow(fileId) {
     });
 
     const responseText = await response.text();
-    console.log('Dify workflow response status:', response.status);
-    console.log('Dify workflow response headers:', Object.fromEntries(response.headers.entries()));
-    console.log('Dify workflow response body (first 1000 chars):', responseText.substring(0, 1000));
+    console.log(`Response status for ${pattern.name}:`, response.status);
 
     if (!response.ok) {
       return {
         success: false,
         error: `HTTP ${response.status}`,
-        debug: `Workflow failed with status ${response.status}. Response: ${responseText}`,
-        fullResponse: responseText
+        debug: `Workflow failed with status ${response.status}. Response: ${responseText.substring(0, 500)}...`
       };
     }
 
-    // JSON解析を安全に実行
+    // JSON解析
     let result;
     try {
       result = JSON.parse(responseText);
     } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      console.log('Raw response that failed to parse:', responseText);
       return {
         success: false,
-        error: 'Invalid JSON response from Dify',
-        debug: `JSON parse failed: ${parseError.message}. Raw response: ${responseText.substring(0, 200)}...`,
-        fullResponse: responseText
+        error: 'Invalid JSON response',
+        debug: `JSON parse failed: ${parseError.message}`
       };
     }
     
-    // 🔍 詳細デバッグ: レスポンス構造を分析
-    console.log('=== WORKFLOW RESPONSE ANALYSIS ===');
-    console.log('Full result keys:', Object.keys(result));
-    console.log('result.data exists:', !!result.data);
-    
-    if (result.data) {
-      console.log('result.data keys:', Object.keys(result.data));
-      console.log('result.data.outputs exists:', !!result.data.outputs);
-      
-      if (result.data.outputs) {
-        console.log('result.data.outputs keys:', Object.keys(result.data.outputs));
-        console.log('result.data.outputs content:', JSON.stringify(result.data.outputs, null, 2));
-      }
-    }
-    
-    // ワークフロー結果からパラメータを抽出（複数のパターンを試行）
-    let extractedData = {};
-    
-    // パターン1: result.data.outputs から抽出（現在の方法）
-    if (result.data && result.data.outputs) {
-      console.log('Pattern 1: Using result.data.outputs');
-      const outputs = result.data.outputs;
-      extractedData = {
-        shaho_count: outputs.shaho_count || '',
-        shaho_amount: outputs.shaho_amount || '',
-        kokuho_count: outputs.kokuho_count || '',
-        kokuho_amount: outputs.kokuho_amount || '',
-        kouki_count: outputs.kouki_count || '',
-        kouki_amount: outputs.kouki_amount || '',
-        jihi_count: outputs.jihi_count || '',
-        jihi_amount: outputs.jihi_amount || '',
-        bushan_note: outputs.bushan_note || '',
-        bushan_amount: outputs.bushan_amount || '',
-        previous_difference: outputs.previous_difference || '',
-        hoken_nashi_count: outputs.hoken_nashi_count || '',
-        hoken_nashi_amount: outputs.hoken_nashi_amount || ''
+    // ワークフローの状態を確認
+    if (result.data && result.data.status === 'failed') {
+      return {
+        success: false,
+        error: result.data.error || 'Workflow execution failed',
+        debug: `Workflow failed: ${result.data.error}. Elapsed time: ${result.data.elapsed_time}s`
       };
     }
     
-    // パターン2: result から直接抽出
-    if (Object.keys(extractedData).every(key => !extractedData[key]) && result.shaho_count) {
-      console.log('Pattern 2: Using result directly');
-      extractedData = {
-        shaho_count: result.shaho_count || '',
-        shaho_amount: result.shaho_amount || '',
-        kokuho_count: result.kokuho_count || '',
-        kokuho_amount: result.kokuho_amount || '',
-        kouki_count: result.kouki_count || '',
-        kouki_amount: result.kouki_amount || '',
-        jihi_count: result.jihi_count || '',
-        jihi_amount: result.jihi_amount || '',
-        bushan_note: result.bushan_note || '',
-        bushan_amount: result.bushan_amount || '',
-        previous_difference: result.previous_difference || '',
-        hoken_nashi_count: result.hoken_nashi_count || '',
-        hoken_nashi_amount: result.hoken_nashi_amount || ''
-      };
-    }
+    // データ抽出を試行
+    const extractedData = extractDataFromResponse(result);
     
-    // パターン3: result.data から直接抽出
-    if (Object.keys(extractedData).every(key => !extractedData[key]) && result.data && result.data.shaho_count) {
-      console.log('Pattern 3: Using result.data directly');
-      extractedData = {
-        shaho_count: result.data.shaho_count || '',
-        shaho_amount: result.data.shaho_amount || '',
-        kokuho_count: result.data.kokuho_count || '',
-        kokuho_amount: result.data.kokuho_amount || '',
-        kouki_count: result.data.kouki_count || '',
-        kouki_amount: result.data.kouki_amount || '',
-        jihi_count: result.data.jihi_count || '',
-        jihi_amount: result.data.jihi_amount || '',
-        bushan_note: result.data.bushan_note || '',
-        bushan_amount: result.data.bushan_amount || '',
-        previous_difference: result.data.previous_difference || '',
-        hoken_nashi_count: result.data.hoken_nashi_count || '',
-        hoken_nashi_amount: result.data.hoken_nashi_amount || ''
+    // 最低限のデータが抽出できたかチェック
+    const hasValidData = Object.values(extractedData).some(value => value && value !== '');
+    
+    if (!hasValidData) {
+      return {
+        success: false,
+        error: 'No valid data extracted',
+        debug: 'Workflow completed but no extractable data found in outputs'
       };
     }
-
-    console.log('Final extracted data:', JSON.stringify(extractedData, null, 2));
 
     return {
       success: true,
       data: extractedData,
-      debug: `Workflow completed. Status: ${result.data?.status}. Extracted ${Object.keys(extractedData).length} parameters.`,
-      rawResponse: result // デバッグ用に生レスポンスも含める
+      debug: `Workflow completed successfully. Extracted ${Object.keys(extractedData).length} parameters.`,
+      rawResponse: result
     };
 
   } catch (error) {
-    console.error('Workflow error:', error);
-    console.error('Workflow error stack:', error.stack);
+    console.error(`Workflow error for pattern ${pattern.name}:`, error);
     return {
       success: false,
       error: error.message,
-      debug: `Workflow exception: ${error.message}`,
-      stack: error.stack
+      debug: `Workflow exception: ${error.message}`
     };
   }
+}
+
+// レスポンスからデータを抽出する関数（複数の場所を探索）
+function extractDataFromResponse(result) {
+  console.log('=== DATA EXTRACTION ===');
+  console.log('Full result structure:', Object.keys(result));
+  
+  let extractedData = {
+    shaho_count: '',
+    shaho_amount: '',
+    kokuho_count: '',
+    kokuho_amount: '',
+    kouki_count: '',
+    kouki_amount: '',
+    jihi_count: '',
+    jihi_amount: '',
+    bushan_note: '',
+    bushan_amount: '',
+    previous_difference: '',
+    hoken_nashi_count: '',
+    hoken_nashi_amount: ''
+  };
+  
+  // 抽出パターン1: result.data.outputs
+  if (result.data && result.data.outputs && typeof result.data.outputs === 'object') {
+    console.log('Pattern 1: Checking result.data.outputs');
+    const outputs = result.data.outputs;
+    
+    Object.keys(extractedData).forEach(key => {
+      if (outputs[key] !== undefined && outputs[key] !== null) {
+        extractedData[key] = String(outputs[key]);
+        console.log(`Found ${key}: ${outputs[key]}`);
+      }
+    });
+  }
+  
+  // 抽出パターン2: result.outputs
+  if (result.outputs && typeof result.outputs === 'object') {
+    console.log('Pattern 2: Checking result.outputs');
+    const outputs = result.outputs;
+    
+    Object.keys(extractedData).forEach(key => {
+      if (outputs[key] !== undefined && outputs[key] !== null && !extractedData[key]) {
+        extractedData[key] = String(outputs[key]);
+        console.log(`Found ${key}: ${outputs[key]}`);
+      }
+    });
+  }
+  
+  // 抽出パターン3: result直下
+  console.log('Pattern 3: Checking result directly');
+  Object.keys(extractedData).forEach(key => {
+    if (result[key] !== undefined && result[key] !== null && !extractedData[key]) {
+      extractedData[key] = String(result[key]);
+      console.log(`Found ${key}: ${result[key]}`);
+    }
+  });
+  
+  // 抽出パターン4: result.data直下
+  if (result.data && typeof result.data === 'object') {
+    console.log('Pattern 4: Checking result.data directly');
+    Object.keys(extractedData).forEach(key => {
+      if (result.data[key] !== undefined && result.data[key] !== null && !extractedData[key]) {
+        extractedData[key] = String(result.data[key]);
+        console.log(`Found ${key}: ${result.data[key]}`);
+      }
+    });
+  }
+  
+  console.log('Final extracted data:', extractedData);
+  return extractedData;
 }
