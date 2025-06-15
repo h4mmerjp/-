@@ -1,4 +1,4 @@
-// Vercel API Route for Dify Proxy - 修正版
+// Vercel API Route for Dify Proxy - 当日差額対応版
 import formidable from 'formidable';
 import fs from 'fs';
 import FormData from 'form-data';
@@ -305,7 +305,7 @@ async function runSingleDifyWorkflow(fileId, pattern) {
   }
 }
 
-// レスポンスからデータを抽出する関数（強化版）
+// レスポンスからデータを抽出する関数（当日差額対応版）
 function extractDataFromResponse(result) {
   console.log('=== DATA EXTRACTION ===');
   console.log('Full result structure:', Object.keys(result));
@@ -322,6 +322,7 @@ function extractDataFromResponse(result) {
     bushan_note: '',
     bushan_amount: '',
     previous_difference: '',
+    today_difference: '', // 🆕 新しく追加
     hoken_nashi_count: '',
     hoken_nashi_amount: ''
   };
