@@ -1,0 +1,336 @@
+app:
+  description: ''
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: 日計表自動入力（当日差額対応版）
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/gemini:0.2.3@1f549adb04dae791e36f4dac3edb5d128a381ed7da3e05c1b3734274e5bf01d6
+kind: app
+version: 0.3.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - remote_url
+      - local_file
+      enabled: true
+      fileUploadConfig:
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        image_file_size_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: document-extractor
+      id: 1740885475575-source-1748678788993-target
+      selected: false
+      source: '1740885475575'
+      sourceHandle: source
+      target: '1748678788993'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: document-extractor
+        targetType: parameter-extractor
+      id: 1748678788993-source-1749219688952-target
+      source: '1748678788993'
+      sourceHandle: source
+      target: '1749219688952'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: parameter-extractor
+        targetType: end
+      id: 1749219688952-source-1749699840736-target
+      source: '1749219688952'
+      sourceHandle: source
+      target: '1749699840736'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 開始
+        type: start
+        variables:
+        - allowed_file_extensions: []
+          allowed_file_types:
+          - document
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          label: file
+          max_length: 999999999
+          options: []
+          required: false
+          type: file
+          variable: file
+      height: 89
+      id: '1740885475575'
+      position:
+        x: 30
+        y: 270
+      positionAbsolute:
+        x: 30
+        y: 270
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: ''
+        is_array_file: false
+        selected: false
+        title: テキスト抽出 2
+        type: document-extractor
+        variable_selector:
+        - '1740885475575'
+        - file
+      height: 91
+      id: '1748678788993'
+      position:
+        x: 334
+        y: 270
+      positionAbsolute:
+        x: 334
+        y: 270
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: ''
+        instruction: "あなたは歯科医院の日計表PDFからデータを抽出するAIアシスタントです。{{#1748678788993.text#}}からデータを抽出してください\n\
+          \n## 重要な注意点：\n- **点数ではなく金額（円）を抽出してください**\n- 金額は「負担額」「領収額」の列から取得\n- 点数の列は無視してください\n\
+          \n## 抽出対象データ：\n1. **患者種別ごとの集計**（主たる保険種別で分類）\n   - 社保：「社本」「社家」が主保険の患者\n \
+          \  - 国保：「国本」「国家」が主保険の患者\n   - 後期高齢者：「後期」が主保険の患者\n   - **自費**：保険種別が「自費」または保険がない患者のうち、自費診療を受けた患者\n\
+          \   - **保険なし**：保険種別が「保険なし」の患者\n\n2. **その他の項目**\n   - 物販合計金額\n   - 前回差額（符号を含む）\n\
+          \   - 当日差額（符号を含む）\n\n## 重要な分類ルール：\n1. **各患者は主たる保険種別で1つのカテゴリにのみ分類**\n2. **自費患者としてカウントするのは**：\n\
+          \   - 保険種別が明確に「自費」と記載されている患者のみ\n   - または保険診療がなく自費のみの患者\n3. **保険診療と自費の併用患者**：\n\
+          \   - 主保険（社保/国保/後期）でカウント\n   - 自費患者にはカウントしない\n4. **金額の集計**：\n   - 各保険種別：その保険での診療費のみ\n\
+          \   - 自費：純粋な自費診療費のみ\n   - 保険なし：保険なし患者の全診療費\n\n## 期待される正確な結果例：\n- 社保患者42名（社保診療費のみ）\n\
+          - 国保患者4名（国保診療費のみ）  \n- 後期患者5名（後期診療費のみ）\n- **自費患者1名（純粋な自費診療3,850円のみ）**\n\
+          - 保険なし患者1名（10,060円）\n\n## 出力形式：\n```json\n{\n  \"shaho_count\": [社保患者の人数],\n\
+          \  \"shaho_amount\": [社保診療費合計],\n  \"kokuho_count\": [国保患者の人数], \n  \"kokuho_amount\"\
+          : [国保診療費合計],\n  \"kouki_count\": [後期患者の人数],\n  \"kouki_amount\": [後期診療費合計],\n\
+          \  \"jihi_count\": [純粋な自費患者の人数],\n  \"jihi_amount\": [純粋な自費診療費合計],\n  \"\
+          hoken_nashi_count\": [保険なし患者の人数],\n  \"hoken_nashi_amount\": [保険なし患者の診療費合計],\n\
+          \  \"bushan_note\": \"物販\",\n  \"bushan_amount\": [物販合計金額],\n  \"previous_difference\"\
+          : [前回差額（符号を含む）],\n  \"today_difference\": [当日差額（符号を含む）]\n}"
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gemini-2.0-flash
+          provider: langgenius/gemini/google
+        parameters:
+        - description: 社保の人数
+          name: shaho_count
+          required: false
+          type: string
+        - description: 社保の金額
+          name: shaho_amount
+          required: false
+          type: string
+        - description: 国保の人数
+          name: kokuho_count
+          required: false
+          type: string
+        - description: 国保の金額
+          name: kokuho_amount
+          required: false
+          type: string
+        - description: ' 後期高齢者の人数'
+          name: kouki_count
+          required: false
+          type: string
+        - description: ' 後期高齢者の金額'
+          name: kouki_amount
+          required: false
+          type: string
+        - description: 自費の人数
+          name: jihi_count
+          required: false
+          type: string
+        - description: 自費の金額
+          name: jihi_amount
+          required: false
+          type: string
+        - description: 物販
+          name: bushan_note
+          required: false
+          type: string
+        - description: ' 物販合計金額'
+          name: bushan_amount
+          required: false
+          type: string
+        - description: 前回差額（符号を含む）
+          name: previous_difference
+          required: false
+          type: string
+        - description: 当日差額（符号を含む）
+          name: today_difference
+          required: false
+          type: string
+        - description: 保険なしの人数
+          name: hoken_nashi_count
+          required: false
+          type: string
+        - description: 保険なしの金額
+          name: hoken_nashi_amount
+          required: false
+          type: string
+        query:
+        - '1748678788993'
+        - text
+        reasoning_mode: prompt
+        selected: false
+        title: パラメータ抽出 3
+        type: parameter-extractor
+        variables: []
+        vision:
+          enabled: false
+      height: 89
+      id: '1749219688952'
+      position:
+        x: 752.83113189952
+        y: 277.11985922739547
+      positionAbsolute:
+        x: 752.83113189952
+        y: 277.11985922739547
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - '1749219688952'
+          - shaho_count
+          variable: shaho_count
+        - value_selector:
+          - '1749219688952'
+          - shaho_amount
+          variable: shaho_amount
+        - value_selector:
+          - '1749219688952'
+          - kokuho_count
+          variable: kokuho_count
+        - value_selector:
+          - '1749219688952'
+          - kokuho_amount
+          variable: kokuho_amount
+        - value_selector:
+          - '1749219688952'
+          - kouki_count
+          variable: kouki_count
+        - value_selector:
+          - '1749219688952'
+          - kouki_amount
+          variable: kouki_amount
+        - value_selector:
+          - '1749219688952'
+          - jihi_count
+          variable: jihi_count
+        - value_selector:
+          - '1749219688952'
+          - jihi_amount
+          variable: jihi_amount
+        - value_selector:
+          - '1749219688952'
+          - bushan_note
+          variable: bushan_note
+        - value_selector:
+          - '1749219688952'
+          - bushan_amount
+          variable: bushan_amount
+        - value_selector:
+          - '1749219688952'
+          - previous_difference
+          variable: previous_difference
+        - value_selector:
+          - '1749219688952'
+          - today_difference
+          variable: today_difference
+        - value_selector:
+          - '1749219688952'
+          - hoken_nashi_count
+          variable: hoken_nashi_count
+        - value_selector:
+          - '1749219688952'
+          - hoken_nashi_amount
+          variable: hoken_nashi_amount
+        selected: true
+        title: 終了
+        type: end
+      height: 401
+      id: '1749699840736'
+      position:
+        x: 1055.83113189952
+        y: 277.11985922739547
+      positionAbsolute:
+        x: 1055.83113189952
+        y: 277.11985922739547
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 243
+    viewport:
+      x: 279.01759478477663
+      y: 158.05397204750668
+      zoom: 0.8440672656737027
