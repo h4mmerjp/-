@@ -1225,37 +1225,48 @@
                 }
             }
             
-            // 当日差額（符号を含む）- 新機能
-            if (data.today_difference) {
+            // 当日差額（符号を含む）- 新機能（0対応版）
+            if (data.today_difference !== undefined && data.today_difference !== null) {
                 const diffStr = data.today_difference.toString();
                 
-                // 符号を確認
-                if (diffStr.startsWith('-')) {
-                    todayDifferenceSign = '-';
-                    const cleanValue = cleanNumericValue(diffStr.substring(1));
-                    document.getElementById('todayDifference').value = cleanValue;
-                    logDebug(`当日差額: ${diffStr} → 符号: ${todayDifferenceSign}, 値: ${cleanValue}`);
-                } else if (diffStr.startsWith('+')) {
-                    todayDifferenceSign = '+';
-                    const cleanValue = cleanNumericValue(diffStr.substring(1));
-                    document.getElementById('todayDifference').value = cleanValue;
-                    logDebug(`当日差額: ${diffStr} → 符号: ${todayDifferenceSign}, 値: ${cleanValue}`);
-                } else {
-                    todayDifferenceSign = '+';
-                    const cleanValue = cleanNumericValue(diffStr);
-                    document.getElementById('todayDifference').value = cleanValue;
-                    logDebug(`当日差額: ${diffStr} → 符号: ${todayDifferenceSign}, 値: ${cleanValue} (符号なし、正として処理)`);
-                }
+                // デバッグ用ログ
+                logDebug(`当日差額の生データ: "${diffStr}" (型: ${typeof data.today_difference})`);
                 
-                // 符号ボタンの表示を更新
-                const todaySignBtn = document.getElementById('todaySignBtn');
-                todaySignBtn.textContent = todayDifferenceSign;
-                todaySignBtn.classList.remove('positive', 'negative');
-                if (todayDifferenceSign === '+') {
-                    todaySignBtn.classList.add('positive');
+                if (diffStr === '' || diffStr === 'null' || diffStr === 'undefined') {
+                    // 空文字やnullの場合はスキップ
+                    logDebug('当日差額: 空文字またはnull → スキップ');
                 } else {
-                    todaySignBtn.classList.add('negative');
+                    // 符号を確認（0も含めて処理）
+                    if (diffStr.startsWith('-')) {
+                        todayDifferenceSign = '-';
+                        const cleanValue = cleanNumericValue(diffStr.substring(1));
+                        document.getElementById('todayDifference').value = cleanValue;
+                        logDebug(`当日差額: ${diffStr} → 符号: ${todayDifferenceSign}, 値: ${cleanValue}`);
+                    } else if (diffStr.startsWith('+')) {
+                        todayDifferenceSign = '+';
+                        const cleanValue = cleanNumericValue(diffStr.substring(1));
+                        document.getElementById('todayDifference').value = cleanValue;
+                        logDebug(`当日差額: ${diffStr} → 符号: ${todayDifferenceSign}, 値: ${cleanValue}`);
+                    } else {
+                        // 符号なしの場合（0を含む）
+                        todayDifferenceSign = '+';
+                        const cleanValue = cleanNumericValue(diffStr);
+                        document.getElementById('todayDifference').value = cleanValue;
+                        logDebug(`当日差額: ${diffStr} → 符号: ${todayDifferenceSign}, 値: ${cleanValue} (符号なし、正として処理)`);
+                    }
+                    
+                    // 符号ボタンの表示を更新
+                    const todaySignBtn = document.getElementById('todaySignBtn');
+                    todaySignBtn.textContent = todayDifferenceSign;
+                    todaySignBtn.classList.remove('positive', 'negative');
+                    if (todayDifferenceSign === '+') {
+                        todaySignBtn.classList.add('positive');
+                    } else {
+                        todaySignBtn.classList.add('negative');
+                    }
                 }
+            } else {
+                logDebug('当日差額: データが存在しません');
             }
             
             updatePrintSigns(); // 印刷用符号表示を更新
