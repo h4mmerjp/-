@@ -815,11 +815,22 @@
                             <td>繰越</td>
                             <td>
                                 <div class="difference-controls">
-                                    <button type="button" class="difference-btn-single" id="signBtn" onclick="toggleDifferenceSign()">+</button>
+                                    <button type="button" class="difference-btn-single" id="previousSignBtn" onclick="togglePreviousDifferenceSign()">+</button>
                                 </div>
-                                <span class="print-sign" id="printSign">+</span>
+                                <span class="print-sign" id="previousPrintSign">+</span>
                             </td>
                             <td><input type="number" class="input-field print-input-m" id="previousDifference" oninput="updateCalculations()"></td>
+                        </tr>
+                        <tr>
+                            <td>当日差額</td>
+                            <td>調整</td>
+                            <td>
+                                <div class="difference-controls">
+                                    <button type="button" class="difference-btn-single" id="todaySignBtn" onclick="toggleTodayDifferenceSign()">+</button>
+                                </div>
+                                <span class="print-sign" id="todayPrintSign">+</span>
+                            </td>
+                            <td><input type="number" class="input-field print-input-m" id="todayDifference" oninput="updateCalculations()"></td>
                         </tr>
                         <tr>
                             <td>社保</td>
@@ -959,19 +970,22 @@
     </div>
 
     <script>
-        let differenceSign = '+'; // デフォルトは+
+        let previousDifferenceSign = '+'; // 前回差額の符号
+        let todayDifferenceSign = '+'; // 当日差額の符号
         let selectedFile = null;
 
         // 初期化
         document.addEventListener('DOMContentLoaded', function() {
             setToday();
             updateCalculations();
-            updatePrintSign(); // 印刷用符号表示を初期化
+            updatePrintSigns(); // 印刷用符号表示を初期化
             logDebug('アプリケーションが初期化されました');
             
             // 初期状態でボタンのクラスを設定
-            const signBtn = document.getElementById('signBtn');
-            signBtn.classList.add('positive');
+            const previousSignBtn = document.getElementById('previousSignBtn');
+            const todaySignBtn = document.getElementById('todaySignBtn');
+            previousSignBtn.classList.add('positive');
+            todaySignBtn.classList.add('positive');
         });
 
         // デバッグログ関数
@@ -1181,36 +1195,70 @@
                 
                 // 符号を確認
                 if (diffStr.startsWith('-')) {
-                    differenceSign = '-';
+                    previousDifferenceSign = '-';
                     // マイナス符号を除去してカンマも除去
                     const cleanValue = cleanNumericValue(diffStr.substring(1));
                     document.getElementById('previousDifference').value = cleanValue;
-                    logDebug(`前回差額: ${diffStr} → 符号: ${differenceSign}, 値: ${cleanValue}`);
+                    logDebug(`前回差額: ${diffStr} → 符号: ${previousDifferenceSign}, 値: ${cleanValue}`);
                 } else if (diffStr.startsWith('+')) {
-                    differenceSign = '+';
+                    previousDifferenceSign = '+';
                     // プラス符号を除去してカンマも除去
                     const cleanValue = cleanNumericValue(diffStr.substring(1));
                     document.getElementById('previousDifference').value = cleanValue;
-                    logDebug(`前回差額: ${diffStr} → 符号: ${differenceSign}, 値: ${cleanValue}`);
+                    logDebug(`前回差額: ${diffStr} → 符号: ${previousDifferenceSign}, 値: ${cleanValue}`);
                 } else {
                     // 符号なしの場合は正として扱う
-                    differenceSign = '+';
+                    previousDifferenceSign = '+';
                     const cleanValue = cleanNumericValue(diffStr);
                     document.getElementById('previousDifference').value = cleanValue;
-                    logDebug(`前回差額: ${diffStr} → 符号: ${differenceSign}, 値: ${cleanValue} (符号なし、正として処理)`);
+                    logDebug(`前回差額: ${diffStr} → 符号: ${previousDifferenceSign}, 値: ${cleanValue} (符号なし、正として処理)`);
                 }
                 
                 // 符号ボタンの表示を更新
-                const signBtn = document.getElementById('signBtn');
-                signBtn.textContent = differenceSign;
-                signBtn.classList.remove('positive', 'negative');
-                if (differenceSign === '+') {
-                    signBtn.classList.add('positive');
+                const previousSignBtn = document.getElementById('previousSignBtn');
+                previousSignBtn.textContent = previousDifferenceSign;
+                previousSignBtn.classList.remove('positive', 'negative');
+                if (previousDifferenceSign === '+') {
+                    previousSignBtn.classList.add('positive');
                 } else {
-                    signBtn.classList.add('negative');
+                    previousSignBtn.classList.add('negative');
                 }
-                updatePrintSign();
             }
+            
+            // 当日差額（符号を含む）- 新機能
+            if (data.today_difference) {
+                const diffStr = data.today_difference.toString();
+                
+                // 符号を確認
+                if (diffStr.startsWith('-')) {
+                    todayDifferenceSign = '-';
+                    const cleanValue = cleanNumericValue(diffStr.substring(1));
+                    document.getElementById('todayDifference').value = cleanValue;
+                    logDebug(`当日差額: ${diffStr} → 符号: ${todayDifferenceSign}, 値: ${cleanValue}`);
+                } else if (diffStr.startsWith('+')) {
+                    todayDifferenceSign = '+';
+                    const cleanValue = cleanNumericValue(diffStr.substring(1));
+                    document.getElementById('todayDifference').value = cleanValue;
+                    logDebug(`当日差額: ${diffStr} → 符号: ${todayDifferenceSign}, 値: ${cleanValue}`);
+                } else {
+                    todayDifferenceSign = '+';
+                    const cleanValue = cleanNumericValue(diffStr);
+                    document.getElementById('todayDifference').value = cleanValue;
+                    logDebug(`当日差額: ${diffStr} → 符号: ${todayDifferenceSign}, 値: ${cleanValue} (符号なし、正として処理)`);
+                }
+                
+                // 符号ボタンの表示を更新
+                const todaySignBtn = document.getElementById('todaySignBtn');
+                todaySignBtn.textContent = todayDifferenceSign;
+                todaySignBtn.classList.remove('positive', 'negative');
+                if (todayDifferenceSign === '+') {
+                    todaySignBtn.classList.add('positive');
+                } else {
+                    todaySignBtn.classList.add('negative');
+                }
+            }
+            
+            updatePrintSigns(); // 印刷用符号表示を更新
             
             // 計算を更新
             updateCalculations();
@@ -1271,29 +1319,46 @@
         document.getElementById('reportDate').addEventListener('change', updateDateDisplay);
 
         // 印刷用符号表示を更新
-        function updatePrintSign() {
-            const printSign = document.getElementById('printSign');
-            printSign.textContent = differenceSign;
+        function updatePrintSigns() {
+            const previousPrintSign = document.getElementById('previousPrintSign');
+            const todayPrintSign = document.getElementById('todayPrintSign');
+            previousPrintSign.textContent = previousDifferenceSign;
+            todayPrintSign.textContent = todayDifferenceSign;
         }
 
-        // 前回差額の符号切り替え（1つのボタンでトグル）
-        function toggleDifferenceSign() {
-            // 符号を切り替え
-            differenceSign = differenceSign === '+' ? '-' : '+';
+        // 前回差額の符号切り替え
+        function togglePreviousDifferenceSign() {
+            previousDifferenceSign = previousDifferenceSign === '+' ? '-' : '+';
             
-            // ボタンの表示と色を更新
-            const signBtn = document.getElementById('signBtn');
-            signBtn.textContent = differenceSign;
+            const signBtn = document.getElementById('previousSignBtn');
+            signBtn.textContent = previousDifferenceSign;
             
-            // クラスを更新
             signBtn.classList.remove('positive', 'negative');
-            if (differenceSign === '+') {
+            if (previousDifferenceSign === '+') {
                 signBtn.classList.add('positive');
             } else {
                 signBtn.classList.add('negative');
             }
             
-            updatePrintSign(); // 印刷用符号表示を更新
+            updatePrintSigns();
+            updateCalculations();
+        }
+
+        // 当日差額の符号切り替え（新機能）
+        function toggleTodayDifferenceSign() {
+            todayDifferenceSign = todayDifferenceSign === '+' ? '-' : '+';
+            
+            const signBtn = document.getElementById('todaySignBtn');
+            signBtn.textContent = todayDifferenceSign;
+            
+            signBtn.classList.remove('positive', 'negative');
+            if (todayDifferenceSign === '+') {
+                signBtn.classList.add('positive');
+            } else {
+                signBtn.classList.add('negative');
+            }
+            
+            updatePrintSigns();
             updateCalculations();
         }
 
@@ -1347,13 +1412,16 @@
             const totalBalance = stockTotal + currencyTotal;
             document.getElementById('totalBalance').textContent = totalBalance;
 
-            // 前回差額の処理
+            // 前回差額と当日差額の処理
             const previousDifferenceValue = parseInt(document.getElementById('previousDifference').value) || 0;
-            const previousDifferenceAmount = differenceSign === '+' ? previousDifferenceValue : -previousDifferenceValue;
+            const previousDifferenceAmount = previousDifferenceSign === '+' ? previousDifferenceValue : -previousDifferenceValue;
+            
+            const todayDifferenceValue = parseInt(document.getElementById('todayDifference').value) || 0;
+            const todayDifferenceAmount = todayDifferenceSign === '+' ? todayDifferenceValue : -todayDifferenceValue;
 
-            // 収入計算（前回差額を含む）
+            // 収入計算（前回差額と当日差額を含む）
             const incomeItems = ['shahoIncome', 'kokuhoIncome', 'koukiIncome', 'jihiIncome', 'hokenNashiIncome', 'bushanIncome', 'extraIncome1Amount', 'extraIncome2Amount'];
-            let incomeTotal = previousDifferenceAmount;
+            let incomeTotal = previousDifferenceAmount + todayDifferenceAmount;
             incomeItems.forEach(id => {
                 incomeTotal += parseInt(document.getElementById(id).value) || 0;
             });
@@ -1413,13 +1481,21 @@
             document.getElementById('fileStatus').textContent = 'PDFファイルを選択してください';
             document.getElementById('fileStatus').className = 'file-status';
             
-            // 前回差額の符号を+にリセット
-            differenceSign = '+';
-            const signBtn = document.getElementById('signBtn');
-            signBtn.textContent = '+';
-            signBtn.classList.remove('positive', 'negative');
-            signBtn.classList.add('positive');
-            updatePrintSign(); // 印刷用符号表示も更新
+            // 前回差額と当日差額の符号を+にリセット
+            previousDifferenceSign = '+';
+            todayDifferenceSign = '+';
+            
+            const previousSignBtn = document.getElementById('previousSignBtn');
+            previousSignBtn.textContent = '+';
+            previousSignBtn.classList.remove('positive', 'negative');
+            previousSignBtn.classList.add('positive');
+            
+            const todaySignBtn = document.getElementById('todaySignBtn');
+            todaySignBtn.textContent = '+';
+            todaySignBtn.classList.remove('positive', 'negative');
+            todaySignBtn.classList.add('positive');
+            
+            updatePrintSigns(); // 印刷用符号表示も更新
             
             document.getElementById('confirmModal').classList.add('hidden');
             updateCalculations();
@@ -1464,11 +1540,18 @@
                     date: document.getElementById('reportDate').value || 'no-date',
                     income: {
                         previousDifference: {
-                            sign: differenceSign,
+                            sign: previousDifferenceSign,
                             amount: parseInt(document.getElementById('previousDifference').value) || 0,
-                            signedAmount: differenceSign === '+' ? 
+                            signedAmount: previousDifferenceSign === '+' ? 
                                 (parseInt(document.getElementById('previousDifference').value) || 0) : 
                                 -(parseInt(document.getElementById('previousDifference').value) || 0)
+                        },
+                        todayDifference: {
+                            sign: todayDifferenceSign,
+                            amount: parseInt(document.getElementById('todayDifference').value) || 0,
+                            signedAmount: todayDifferenceSign === '+' ? 
+                                (parseInt(document.getElementById('todayDifference').value) || 0) : 
+                                -(parseInt(document.getElementById('todayDifference').value) || 0)
                         },
                         shaho: {
                             count: parseInt(document.getElementById('shahoCount').value) || 0,
